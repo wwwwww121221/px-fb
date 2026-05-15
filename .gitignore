@@ -1,0 +1,26 @@
+.env
+.env.*
+
+# runtime data / volumes
+minio-data/
+mysql-data/
+px-work-ai/uploads/
+
+# docker local orchestration
+docker-compose.yml
+docker/
+
+# frontend build/cache
+frontend1/node_modules/
+frontend1/dist/
+
+# java build
+**/target/
+
+# ide
+.vscode/
+.idea/
+
+# logs
+*.log
+mysql_log.txt
