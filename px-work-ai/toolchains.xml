@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF8"?>
+<toolchains>
+  <toolchain>
+    <type>jdk</type>
+    <provides>
+      <version>17</version>
+    </provides>
+    <configuration>
+      <jdkHome>/home/user/.trae-server/extensions/redhat.java-1.53.0-linux-x64/jre/21.0.10-linux-x86_64</jdkHome>
+    </configuration>
+  </toolchain>
+</toolchains>

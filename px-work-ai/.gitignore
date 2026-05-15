@@ -1,0 +1,11 @@
+# IDE 配置
+.vscode/
+# 编译产物
+target/
+*.class
+# 日志/缓存
+logs/
+*.log
+
+# 上传素材目录
+uploads/

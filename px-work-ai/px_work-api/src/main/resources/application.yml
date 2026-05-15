@@ -1,0 +1,69 @@
+server:
+  port: ${SERVER_PORT:8082}
+
+app:
+  upload-dir: ${APP_UPLOAD_DIR:/app/uploads}
+
+spring:
+  application:
+    name: px_work-api
+  # 🔴 下面这三行就是专门加的：解除上传大小限制（最大 10GB）
+  servlet:
+    multipart:
+      max-file-size: 10240MB     
+      max-request-size: 10240MB  
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: ${SPRING_DATASOURCE_URL:jdbc:mysql://host.docker.internal:3306/platform?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    username: ${SPRING_DATASOURCE_USERNAME:root}
+    password: ${SPRING_DATASOURCE_PASSWORD:root}
+  web:
+    resources:
+      static-locations: classpath:/static/,classpath:/public/,classpath:/resources/,classpath:/META-INF/resources/
+
+mybatis-plus:
+  configuration:
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl # 开启控制台 SQL 打印
+  global-config:
+    db-config:
+      id-type: auto # 配置主键自增
+
+sa-token:
+  token-name: satoken
+  timeout: 2592000
+  active-timeout: -1
+  is-concurrent: true
+  is-share: false
+  is-read-header: true
+  is-read-cookie: true
+  token-style: uuid
+
+springdoc:
+  swagger-ui:
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+ai:
+  dify:
+    base-url: ${AI_DIFY_BASE_URL:http://192.168.60.20/v1}
+    generate-key: ${AI_DIFY_GENERATE_KEY:app-noi1O8gsIKnjWV1i5Y23qMgA}
+    grade-key: ${AI_DIFY_GRADE_KEY:app-Cl0EZsgHRJQkCAUAQqc3ijqK}
+    #outline-key: "app-TsW33qnmMXIDlY7DhGwSB0Al"
+
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://192.168.60.20:9000}
+  public-endpoint: ${MINIO_PUBLIC_ENDPOINT:${MINIO_ENDPOINT:http://192.168.60.20:9000}}
+  access-key: ${MINIO_ACCESS_KEY:admin}
+  secret-key: ${MINIO_SECRET_KEY:admin123456}
+  bucket-name: ${MINIO_BUCKET_NAME:px-work}
+
+# logging 配置必须与 spring 平级，不能缩进到 ai 下面
+logging:
+  level:
+    com.zaxxer.hikari: DEBUG
+    org.springframework.jdbc: DEBUG
+  # 腾讯云 TRTC 直播配置
+trtc:
+  appid: 1600135547
+  secret-key: "48cd6305f31e1a916ad6dc792ef8c93b3dd746141765d43d159e9d15de38c63b"
+  expire-time: 86400  # 门票有效期：86400秒（刚好是一天）

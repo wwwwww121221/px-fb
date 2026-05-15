@@ -1,0 +1,32 @@
+package com.pxwork.api.controller.backend;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.pxwork.common.utils.Result;
+import com.pxwork.system.entity.AdminMenu;
+import com.pxwork.system.service.AdminMenuService;
+
+import cn.dev33.satoken.annotation.SaCheckPermission;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+@Tag(name = "1.2 后台-角色与权限管理")
+@RestController
+@RequestMapping("/admin-menu")
+public class AdminMenuController {
+
+    @Autowired
+    private AdminMenuService adminMenuService;
+
+    @Operation(summary = "获取系统权限菜单树", description = "获取完整菜单权限树")
+    @SaCheckPermission("system:menu:list")
+    @GetMapping("/tree")
+    public Result<List<AdminMenu>> tree() {
+        return Result.success(adminMenuService.getMenuTree());
+    }
+}
