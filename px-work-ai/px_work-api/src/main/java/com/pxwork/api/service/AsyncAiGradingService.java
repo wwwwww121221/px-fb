@@ -142,10 +142,10 @@ public class AsyncAiGradingService {
             // 1. 转为 JSON 对象
             Object parsed = JSONUtil.parse(cleaned);
             JSONObject rootObj;
-            if (parsed instanceof JSONObject) {
-                rootObj = (JSONObject) parsed;
-            } else if (parsed instanceof JSONArray && !((JSONArray) parsed).isEmpty()) {
-                rootObj = JSONUtil.parseObj(((JSONArray) parsed).get(0));
+            if (parsed instanceof JSONObject obj) {
+                rootObj = obj;
+            } else if (parsed instanceof JSONArray arr && !arr.isEmpty()) {
+                rootObj = JSONUtil.parseObj(arr.get(0));
             } else {
                 return new AiJudgeResult(score, comment);
             }
@@ -158,8 +158,8 @@ public class AsyncAiGradingService {
                 // 遍历寻找内部是不是包了一层 String 类型的 JSON
                 for (String key : rootObj.keySet()) {
                     Object val = rootObj.get(key);
-                    if (val instanceof String) {
-                        String strVal = ((String) val).trim();
+                    if (val instanceof String strValRaw) {
+                        String strVal = strValRaw.trim();
                         strVal = strVal.replaceAll("(?i)```json", "").replaceAll("```", "").trim();
                         if (strVal.startsWith("{") && (strVal.contains("\"score\"") || strVal.contains("\"ai_score\""))) {
                             try {
@@ -169,13 +169,12 @@ public class AsyncAiGradingService {
                                 break;
                             } catch (Exception ignored) {}
                         }
-                    } else if (val instanceof JSONObject) {
+                    } else if (val instanceof JSONObject nestedObj) {
                         // 如果有更深层，比如 {"data": {"text": "{\"score\": 10}"}}
-                        JSONObject nestedObj = (JSONObject) val;
                         for (String innerKey : nestedObj.keySet()) {
                             Object innerVal = nestedObj.get(innerKey);
-                            if (innerVal instanceof String) {
-                                String innerStr = ((String) innerVal).trim();
+                            if (innerVal instanceof String innerStrRaw) {
+                                String innerStr = innerStrRaw.trim();
                                 innerStr = innerStr.replaceAll("(?i)```json", "").replaceAll("```", "").trim();
                                 if (innerStr.startsWith("{") && (innerStr.contains("\"score\"") || innerStr.contains("\"ai_score\""))) {
                                     try {
