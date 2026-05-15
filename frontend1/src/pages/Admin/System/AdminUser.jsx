@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   getAdminUserList, 
   createAdminUser, 
@@ -14,6 +14,14 @@ export default function AdminUserManagement() {
   const [adminUsers, setAdminUsers] = useState([]);
   const [roles, setRoles] = useState([]); 
   const [loading, setLoading] = useState(false);
+  const roleNameMap = useMemo(() => {
+    const map = {};
+    (roles || []).forEach(r => {
+      const id = Number(r?.id);
+      if (!Number.isNaN(id) && id > 0) map[id] = r?.name;
+    });
+    return map;
+  }, [roles]);
 
   // === 分页与搜索状态 ===
   const [searchName, setSearchName] = useState('');
@@ -222,9 +230,35 @@ export default function AdminUserManagement() {
                           👑 超级管理员
                         </span>
                       ) : (
-                        <span className="px-2.5 py-1 inline-flex text-xs font-medium rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
-                          {user.roleIds?.length > 0 ? `已分配 ${user.roleIds.length} 个角色` : '暂无角色'}
-                        </span>
+                        (() => {
+                          const roleIds = (user.roleIds || []).map(id => Number(id)).filter(id => !Number.isNaN(id) && id > 0);
+                          const roleNames = roleIds.map(id => roleNameMap[id]).filter(Boolean);
+                          const display = roleNames.length > 0 ? roleNames.slice(0, 3) : [];
+                          const more = roleNames.length - display.length;
+                          const title = roleNames.length > 0 ? roleNames.join('、') : '';
+                          return (
+                            <div className="flex flex-wrap items-center gap-2">
+                              {roleNames.length > 0 ? (
+                                <>
+                                  {display.map((n) => (
+                                    <span key={n} title={title} className="px-2.5 py-1 inline-flex text-xs font-bold rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                                      {n}
+                                    </span>
+                                  ))}
+                                  {more > 0 ? (
+                                    <span title={title} className="px-2.5 py-1 inline-flex text-xs font-bold rounded bg-slate-50 text-slate-500 border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                                      +{more}
+                                    </span>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <span className="px-2.5 py-1 inline-flex text-xs font-medium rounded bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                                  暂无角色
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500">

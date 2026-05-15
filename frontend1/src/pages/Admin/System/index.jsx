@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   getAdminUserList, createAdminUser, updateAdminUser, deleteAdminUser,
   getAdminRoleList, createAdminRole, updateAdminRole, deleteAdminRole,
@@ -23,6 +23,14 @@ export default function SystemManagement() {
   const [userModal, setUserModal] = useState({ isOpen: false, isEdit: false });
   const [userFormData, setUserFormData] = useState({ id: null, name: '', email: '', password: '', isSuper: 0, roleIds: [] });
   const [allRoles, setAllRoles] = useState([]);
+  const roleNameMap = useMemo(() => {
+    const map = {};
+    (allRoles || []).forEach(r => {
+      const id = Number(r?.id);
+      if (!Number.isNaN(id) && id > 0) map[id] = r?.name;
+    });
+    return map;
+  }, [allRoles]);
 
   // ==========================================
   // 模块 2：角色与权限管理状态
@@ -289,7 +297,39 @@ export default function SystemManagement() {
                       </div>
                     </td>
                     <td className="px-6 py-3">
-                      {user.isSuper === 1 ? <span className="px-2.5 py-1 rounded bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200">👑 超级管理员</span> : <span className="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">已分配 {user.roleIds?.length || 0} 个角色</span>}
+                      {user.isSuper === 1 ? (
+                        <span className="px-2.5 py-1 rounded bg-amber-100 text-amber-800 text-xs font-bold border border-amber-200">👑 超级管理员</span>
+                      ) : (
+                        (() => {
+                          const roleIds = (user.roleIds || []).map(id => Number(id)).filter(id => !Number.isNaN(id) && id > 0);
+                          const roleNames = roleIds.map(id => roleNameMap[id]).filter(Boolean);
+                          const display = roleNames.length > 0 ? roleNames.slice(0, 3) : [];
+                          const more = roleNames.length - display.length;
+                          const title = roleNames.length > 0 ? roleNames.join('、') : '';
+                          return (
+                            <div className="flex flex-wrap items-center gap-2">
+                              {roleNames.length > 0 ? (
+                                <>
+                                  {display.map((n) => (
+                                    <span key={n} title={title} className="px-2.5 py-1 rounded bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                                      {n}
+                                    </span>
+                                  ))}
+                                  {more > 0 ? (
+                                    <span title={title} className="px-2.5 py-1 rounded bg-slate-50 text-slate-500 text-xs font-bold border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                                      +{more}
+                                    </span>
+                                  ) : null}
+                                </>
+                              ) : (
+                                <span className="px-2.5 py-1 rounded bg-slate-100 text-slate-600 text-xs border border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700">
+                                  暂无角色
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()
+                      )}
                     </td>
                     <td className="px-6 py-3 text-sm text-slate-500">{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '-'}</td>
                     <td className="px-6 py-3 text-right text-sm font-medium">
