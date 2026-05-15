@@ -87,7 +87,7 @@ export default function StudentLayout() {
             {/* 右侧：用户信息与合并后的退出按钮 */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
-                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.idCard || 'student'}`} alt="avatar" className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200" />
+                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.account || 'student'}`} alt="avatar" className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200" />
                 <span className="text-sm text-slate-600">
                   你好，<span className="font-bold text-slate-800">{user?.name || '学员'}</span>
                 </span>

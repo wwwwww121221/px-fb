@@ -21,7 +21,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!account.trim() || !password.trim()) {
-      setErrorMsg(role === 'student' ? '请输入身份证号和密码' : '请输入邮箱和密码');
+      setErrorMsg('请输入账号和密码');
       return;
     }
 
@@ -31,7 +31,7 @@ export default function Login() {
       let token, tokenName, userInfo;
       
       if (role === 'student') {
-        const loginRes = await request.post('/frontend/login', { idCard: account, password });
+        const loginRes = await request.post('/frontend/login', { account: account.trim(), password });
         
         token = loginRes?.tokenValue || loginRes?.token || loginRes?.data?.token || loginRes;
         tokenName = loginRes?.tokenName || 'satoken';
@@ -54,7 +54,7 @@ export default function Login() {
         }
 
       } else {
-        const loginRes = await request.post('/backend/login', { email: account, password });
+        const loginRes = await request.post('/backend/login', { account: account.trim(), password });
         
         token = loginRes?.tokenValue || loginRes?.token || loginRes?.data?.token || loginRes;
         tokenName = loginRes?.tokenName || 'satoken';
@@ -151,8 +151,8 @@ export default function Login() {
                 {errorMsg && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg border border-red-100 animate-in fade-in zoom-in-95"><span className="font-semibold">提示：</span>{errorMsg}</div>}
                 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">{role === 'admin' ? '管理员账号 (邮箱)' : '学员账号 (身份证号)'}</label>
-                  <input type={role === 'admin' ? 'email' : 'text'} value={account} onChange={(e) => setAccount(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors" placeholder={role === 'admin' ? "admin@example.com" : "请输入18位身份证号"} required />
+                  <label className="block text-sm font-medium text-slate-700 mb-2">登录账号</label>
+                  <input type="text" value={account} onChange={(e) => setAccount(e.target.value)} className="w-full px-4 py-3 rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors" placeholder="请输入登录账号" required />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-700 mb-2">密码</label>

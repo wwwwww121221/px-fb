@@ -124,7 +124,7 @@ public class BackendAssignmentController {
             User user = userMap.get(sub.getUserId());
             if (user != null) {
                 map.put("userName", user.getName());
-                map.put("idCard", user.getIdCard());
+                map.put("jobNo", user.getJobNo());
             }
             return map;
         }).collect(Collectors.toList());

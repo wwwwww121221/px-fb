@@ -99,12 +99,9 @@ public class UserController {
             return Result.fail("Excel 数据为空");
         }
         List<SysDict> dicts = sysDictService.list(new LambdaQueryWrapper<SysDict>()
-                .in(SysDict::getDictType, List.of("job_role", "industry")));
+                .in(SysDict::getDictType, List.of("job_role")));
         Map<String, String> jobRoleDict = dicts.stream()
                 .filter(item -> "job_role".equals(item.getDictType()))
-                .collect(Collectors.toMap(SysDict::getDictLabel, SysDict::getDictValue, (a, b) -> a));
-        Map<String, String> industryDict = dicts.stream()
-                .filter(item -> "industry".equals(item.getDictType()))
                 .collect(Collectors.toMap(SysDict::getDictLabel, SysDict::getDictValue, (a, b) -> a));
 
         Map<String, User> importUserMap = new HashMap<>();
@@ -116,51 +113,48 @@ public class UserController {
                 errors.add("第" + lineNo + "行为空");
                 continue;
             }
-            if (!org.springframework.util.StringUtils.hasText(row.getIdCard())
-                    || !org.springframework.util.StringUtils.hasText(row.getEnterprise())
-                    || !org.springframework.util.StringUtils.hasText(row.getJobRole())
-                    || !org.springframework.util.StringUtils.hasText(row.getIndustry())) {
+            if (!org.springframework.util.StringUtils.hasText(row.getName())
+                    || !org.springframework.util.StringUtils.hasText(row.getAccount())
+                    || !org.springframework.util.StringUtils.hasText(row.getJobRole())) {
                 errors.add("第" + lineNo + "行存在必填项为空");
                 continue;
             }
             String jobRoleValue = jobRoleDict.get(row.getJobRole());
-            String industryValue = industryDict.get(row.getIndustry());
-            if (jobRoleValue == null || industryValue == null) {
-                errors.add("第" + lineNo + "行存在未配置的岗位/行业");
+            if (jobRoleValue == null) {
+                errors.add("第" + lineNo + "行存在未配置的岗位角色");
                 continue;
             }
             User user = new User();
             user.setName(row.getName());
-            user.setIdCard(row.getIdCard());
-            user.setEnterprise(row.getEnterprise());
+            user.setAccount(row.getAccount());
+            user.setJobNo(row.getJobNo());
+            user.setDeptName(row.getDeptName());
+            user.setOffice(row.getOffice());
             user.setJobRole(jobRoleValue);
-            user.setIndustry(industryValue);
-            String idCard = row.getIdCard();
-            String rawPassword = idCard.length() > 6 ? idCard.substring(idCard.length() - 6) : idCard;
+            String passwordSeed = org.springframework.util.StringUtils.hasText(row.getJobNo()) ? row.getJobNo() : row.getAccount();
+            String rawPassword = passwordSeed.length() > 6 ? passwordSeed.substring(passwordSeed.length() - 6) : passwordSeed;
             user.setPassword(SaSecureUtil.sha256(rawPassword));
-            user.setEmail(buildPlaceholderEmail(idCard));
             user.setIsFirstLogin(1);
-            importUserMap.put(row.getIdCard(), user);
+            importUserMap.put(row.getAccount(), user);
         }
         if (!errors.isEmpty()) {
-            return Result.fail("存在未配置的岗位/行业或必填项缺失: " + String.join("；", errors));
+            return Result.fail("存在未配置的岗位角色或必填项缺失: " + String.join("；", errors));
         }
 
-        List<String> idCards = new ArrayList<>(importUserMap.keySet());
-        List<User> exists = userService.list(new LambdaQueryWrapper<User>().in(User::getIdCard, idCards));
-        Map<String, User> existMap = exists.stream().collect(Collectors.toMap(User::getIdCard, item -> item));
+        List<String> accounts = new ArrayList<>(importUserMap.keySet());
+        List<User> exists = userService.list(new LambdaQueryWrapper<User>().in(User::getAccount, accounts));
+        Map<String, User> existMap = exists.stream().collect(Collectors.toMap(User::getAccount, item -> item));
 
         List<User> inserts = new ArrayList<>();
         List<User> updates = new ArrayList<>();
         for (User importUser : importUserMap.values()) {
-            User exist = existMap.get(importUser.getIdCard());
+            User exist = existMap.get(importUser.getAccount());
             if (exist == null) {
                 inserts.add(importUser);
             } else {
                 importUser.setId(exist.getId());
                 importUser.setPassword(exist.getPassword());
                 importUser.setIsFirstLogin(exist.getIsFirstLogin());
-                importUser.setEmail(org.springframework.util.StringUtils.hasText(exist.getEmail()) ? exist.getEmail() : importUser.getEmail());
                 updates.add(importUser);
             }
         }
@@ -175,9 +169,5 @@ public class UserController {
         data.put("inserted", inserts.size());
         data.put("updated", updates.size());
         return Result.success(data);
-    }
-
-    private String buildPlaceholderEmail(String idCard) {
-        return idCard + "@placeholder.local";
     }
 }

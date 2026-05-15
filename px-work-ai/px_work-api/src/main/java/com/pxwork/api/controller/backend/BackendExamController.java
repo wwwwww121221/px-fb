@@ -56,7 +56,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
 
 @Tag(name = "3.4 后台-试卷与考试管理")
 @RestController
@@ -559,7 +558,7 @@ public class BackendExamController {
 
             User user = userMap.get(ue.getUserId());
             map.put("userName", user != null ? user.getName() : "未知学员");
-            map.put("idCard", user != null ? user.getIdCard() : "");
+            map.put("jobNo", user != null ? user.getJobNo() : "");
 
             map.put("status", ue.getStatus());
             map.put("objectiveScore", ue.getObjectiveScore());
@@ -594,7 +593,6 @@ public class BackendExamController {
         return exam;
     }
 
-    @Data
     public static class ExamRequest {
         @NotNull(message = "课程ID不能为空")
         private Long courseId;
@@ -604,33 +602,117 @@ public class BackendExamController {
         private Integer duration;
         @NotNull(message = "综合合格总分不能为空")
         private BigDecimal passTotalScore;
+
+        public Long getCourseId() {
+            return courseId;
+        }
+
+        public void setCourseId(Long courseId) {
+            this.courseId = courseId;
+        }
+
+        public String getTitle() {
+            return title;
+        }
+
+        public void setTitle(String title) {
+            this.title = title;
+        }
+
+        public Integer getDuration() {
+            return duration;
+        }
+
+        public void setDuration(Integer duration) {
+            this.duration = duration;
+        }
+
+        public BigDecimal getPassTotalScore() {
+            return passTotalScore;
+        }
+
+        public void setPassTotalScore(BigDecimal passTotalScore) {
+            this.passTotalScore = passTotalScore;
+        }
     }
 
-    @Data
     public static class QuestionTypeConfig {
         private Integer count;
         private BigDecimal score;
+
+        public Integer getCount() {
+            return count;
+        }
+
+        public void setCount(Integer count) {
+            this.count = count;
+        }
+
+        public BigDecimal getScore() {
+            return score;
+        }
+
+        public void setScore(BigDecimal score) {
+            this.score = score;
+        }
     }
 
-    @Data
     public static class SubjectiveGradeRequest {
         @NotNull(message = "考试记录ID不能为空")
         private Long userExamId;
         @NotEmpty(message = "批改明细不能为空")
         @Valid
         private List<SubjectiveGradeItem> items;
+
+        public Long getUserExamId() {
+            return userExamId;
+        }
+
+        public void setUserExamId(Long userExamId) {
+            this.userExamId = userExamId;
+        }
+
+        public List<SubjectiveGradeItem> getItems() {
+            return items;
+        }
+
+        public void setItems(List<SubjectiveGradeItem> items) {
+            this.items = items;
+        }
     }
 
-    @Data
     public static class SubjectiveGradeItem {
         @NotNull(message = "题目ID不能为空")
         private Long questionId;
         @NotNull(message = "分数不能为空")
         private BigDecimal score;
         private String teacherComment;
+
+        public Long getQuestionId() {
+            return questionId;
+        }
+
+        public void setQuestionId(Long questionId) {
+            this.questionId = questionId;
+        }
+
+        public BigDecimal getScore() {
+            return score;
+        }
+
+        public void setScore(BigDecimal score) {
+            this.score = score;
+        }
+
+        public String getTeacherComment() {
+            return teacherComment;
+        }
+
+        public void setTeacherComment(String teacherComment) {
+            this.teacherComment = teacherComment;
+        }
     }
 
-    @Data
     public static class GradingQuestionDetailVO {
         private Long questionId;
         private String question;
@@ -639,6 +721,62 @@ public class BackendExamController {
         private BigDecimal aiScore;
         private String aiComment;
         private String teacherComment;
+
+        public Long getQuestionId() {
+            return questionId;
+        }
+
+        public void setQuestionId(Long questionId) {
+            this.questionId = questionId;
+        }
+
+        public String getQuestion() {
+            return question;
+        }
+
+        public void setQuestion(String question) {
+            this.question = question;
+        }
+
+        public String getStudentAnswer() {
+            return studentAnswer;
+        }
+
+        public void setStudentAnswer(String studentAnswer) {
+            this.studentAnswer = studentAnswer;
+        }
+
+        public String getStandardAnswer() {
+            return standardAnswer;
+        }
+
+        public void setStandardAnswer(String standardAnswer) {
+            this.standardAnswer = standardAnswer;
+        }
+
+        public BigDecimal getAiScore() {
+            return aiScore;
+        }
+
+        public void setAiScore(BigDecimal aiScore) {
+            this.aiScore = aiScore;
+        }
+
+        public String getAiComment() {
+            return aiComment;
+        }
+
+        public void setAiComment(String aiComment) {
+            this.aiComment = aiComment;
+        }
+
+        public String getTeacherComment() {
+            return teacherComment;
+        }
+
+        public void setTeacherComment(String teacherComment) {
+            this.teacherComment = teacherComment;
+        }
     }
 
 }

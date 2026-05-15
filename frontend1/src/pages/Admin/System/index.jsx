@@ -461,8 +461,8 @@ export default function SystemManagement() {
                     <input required type="text" value={userFormData.name} onChange={e => setUserFormData({...userFormData, name: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700" placeholder="姓名" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium dark:text-slate-200">登录邮箱 <span className="text-red-500">*</span></label>
-                    <input required type="email" value={userFormData.email} onChange={e => setUserFormData({...userFormData, email: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700" placeholder="admin@domain.com" />
+                    <label className="text-sm font-medium dark:text-slate-200">登录账号 <span className="text-red-500">*</span></label>
+                    <input required type="text" value={userFormData.email} onChange={e => setUserFormData({...userFormData, email: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700" placeholder="请输入登录账号" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium dark:text-slate-200">登录密码 {!userModal.isEdit && <span className="text-red-500">*</span>}</label>

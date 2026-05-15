@@ -27,11 +27,11 @@ export default function Organization() {
   const initialFormData = {
     id: null,
     name: '',
-    email: '',
+    account: '',
     password: '',
-    idCard: '',
-    enterprise: '',
-    industry: '',
+    jobNo: '',
+    deptName: '',
+    office: '',
     jobRole: '',
     departmentId: '' 
   };
@@ -100,10 +100,10 @@ export default function Organization() {
     setFormData({
       id: user.id,
       name: user.name || '',
-      email: user.email || '',
-      idCard: user.idCard || '',
-      enterprise: user.enterprise || '',
-      industry: user.industry || '',
+      account: user.account || '',
+      jobNo: user.jobNo || '',
+      deptName: user.deptName || '',
+      office: user.office || '',
       jobRole: user.jobRole || '',
       password: '', // 编辑时密码留空，后端判断为空则不修改
       departmentId: user.departmentId || '' 
@@ -196,42 +196,47 @@ export default function Organization() {
             <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">学员信息</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">工号</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">所属部门</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">企业 / 行业</th>
-                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">岗位</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">科室</th>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">岗位角色</th>
                 <th className="px-6 py-4 text-right text-xs font-semibold text-slate-500 uppercase">操作</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200 dark:bg-slate-900 dark:divide-slate-800">
-              {loading ? <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-500">正在获取数据...</td></tr> : users.length === 0 ? <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-500">暂无数据</td></tr> : users.map((user) => (
+              {loading ? <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-500">正在获取数据...</td></tr> : users.length === 0 ? <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-500">暂无数据</td></tr> : users.map((user) => (
                   <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <img className="h-10 w-10 rounded-full object-cover bg-slate-100 border border-slate-200 dark:border-slate-700" src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.email}`} alt="" />
+                        <img className="h-10 w-10 rounded-full object-cover bg-slate-100 border border-slate-200 dark:border-slate-700" src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.account}`} alt="" />
                         <div className="ml-4">
                           <div className="text-sm font-bold text-slate-900 dark:text-white">{user.name || '未命名'}</div>
-                          <div className="text-xs text-slate-500 mt-0.5">{user.email}</div>
+                          <div className="text-xs text-slate-500 mt-0.5">{user.account}</div>
                         </div>
                       </div>
                     </td>
                     
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{user.jobNo || '-'}</span>
+                    </td>
+                    
                     <td className="px-6 py-4">
-                      {user.department ? (
+                      {user.department?.name || user.deptName ? (
                         <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          {user.department.name}
+                          {user.department?.name || user.deptName}
                         </span>
                       ) : (
-                        <span className="text-slate-400 text-sm">未分配部门</span>
+                        <span className="text-slate-400 text-sm">未填写部门</span>
                       )}
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-slate-800 dark:text-slate-200">{user.enterprise || '-'}</div>
-                      <div className="text-xs text-slate-500 mt-0.5">{user.industry || '未填写行业'}</div>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{user.office || '-'}</span>
                     </td>
+
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="px-2.5 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-100 dark:border-blue-800/50">
-                        {user.jobRole || '未填写岗位'}
+                        {user.jobRole || '未填写岗位角色'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -276,7 +281,7 @@ export default function Organization() {
                   
                   {/* 所属部门 */}
                   <div className="space-y-1 sm:col-span-2">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">所属部门</label>
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">组织部门</label>
                     <select name="departmentId" value={formData.departmentId} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white">
                       <option value="">(未分配部门)</option>
                       {flatDepartments.map(dept => (
@@ -290,8 +295,8 @@ export default function Organization() {
                     <input required name="name" value={formData.name || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="请输入姓名" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">登录邮箱 <span className="text-red-500">*</span></label>
-                    <input required name="email" value={formData.email || ''} onChange={handleFormChange} type="email" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="student@example.com" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">登录账号 <span className="text-red-500">*</span></label>
+                    <input required name="account" value={formData.account || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="请输入登录账号" />
                   </div>
                   
                   <div className="space-y-1">
@@ -302,17 +307,17 @@ export default function Organization() {
                     <input required={!isEdit} name="password" value={formData.password || ''} onChange={handleFormChange} type="password" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="••••••••" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">身份证号</label>
-                    <input name="idCard" value={formData.idCard || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="18位身份证号 (选填)" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">工号</label>
+                    <input name="jobNo" value={formData.jobNo || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="请输入工号 (选填)" />
                   </div>
                   
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">所属企业</label>
-                    <input name="enterprise" value={formData.enterprise || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="企业名称 (选填)" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">所属部门</label>
+                    <input name="deptName" value={formData.deptName || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="请输入所属部门 (选填)" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">行业</label>
-                    <input name="industry" value={formData.industry || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="例如: 互联网, 制造 (选填)" />
+                    <label className="text-sm font-medium text-slate-700 dark:text-slate-300">科室</label>
+                    <input name="office" value={formData.office || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="请输入科室 (选填)" />
                   </div>
                   <div className="space-y-1 sm:col-span-2">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">岗位角色</label>

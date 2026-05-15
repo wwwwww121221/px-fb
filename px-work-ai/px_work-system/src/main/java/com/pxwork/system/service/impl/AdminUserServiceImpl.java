@@ -67,8 +67,9 @@ public class AdminUserServiceImpl extends ServiceImpl<AdminUserMapper, AdminUser
 
     @Override
     public String login(BackendLoginRequest request) {
+        String loginAccount = StringUtils.isNotBlank(request.getAccount()) ? request.getAccount() : request.getEmail();
         AdminUser adminUser = this.getOne(new LambdaQueryWrapper<AdminUser>()
-                .eq(AdminUser::getEmail, request.getEmail()));
+                .eq(AdminUser::getEmail, loginAccount));
         if (adminUser == null) {
             throw new RuntimeException("账号或密码错误");
         }

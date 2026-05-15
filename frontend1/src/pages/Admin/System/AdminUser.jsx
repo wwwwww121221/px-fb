@@ -132,7 +132,7 @@ export default function AdminUserManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name || !formData.email) {
-      alert('请填写姓名和登录邮箱！'); return;
+      alert('请填写姓名和登录账号！'); return;
     }
     
     setSubmitting(true);

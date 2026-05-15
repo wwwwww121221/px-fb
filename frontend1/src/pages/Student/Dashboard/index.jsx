@@ -136,7 +136,7 @@ export default function StudentDashboard() {
         
         <div className="relative z-10 flex items-center gap-5">
           <div className="w-16 h-16 rounded-full bg-blue-100 border-4 border-white shadow-sm flex items-center justify-center overflow-hidden shrink-0">
-             <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userInfo?.idCard || 'student'}`} alt="avatar" className="w-full h-full object-cover" />
+             <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${userInfo?.account || 'student'}`} alt="avatar" className="w-full h-full object-cover" />
           </div>
           <div>
             <h2 className="text-2xl font-extrabold text-slate-800 flex items-center gap-2">
@@ -144,12 +144,12 @@ export default function StudentDashboard() {
             </h2>
             <div className="flex items-center gap-3 mt-2">
               <span className="text-xs font-medium bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md border border-blue-100">
-                {userInfo?.enterprise || '企培通学员'}
+                {userInfo?.deptName || '企培通学员'}
               </span>
-              {(userInfo?.jobRole || userInfo?.industry) && (
+              {userInfo?.jobRole && (
                 <span className="text-xs text-slate-500 flex items-center gap-1">
                   <span className="material-symbols-outlined text-[14px]">work</span>
-                  {userInfo.jobRole} {userInfo.industry ? `(${userInfo.industry})` : ''}
+                  {userInfo.jobRole}
                 </span>
               )}
             </div>

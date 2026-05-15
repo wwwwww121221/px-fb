@@ -1,15 +1,12 @@
 package com.pxwork.common.entity;
 
+import java.io.Serializable;
+import java.time.LocalDateTime;
+
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.experimental.Accessors;
-
-import java.io.Serializable;
-import java.time.LocalDateTime;
 
 /**
  * <p>
@@ -19,9 +16,6 @@ import java.time.LocalDateTime;
  * @author TraeAI
  * @since 2026-03-13
  */
-@Data
-@EqualsAndHashCode(callSuper = false)
-@Accessors(chain = true)
 @TableName("users")
 public class User implements Serializable {
 
@@ -41,14 +35,22 @@ public class User implements Serializable {
     private String avatar;
 
     /**
-     * 身份证号(登录账号)
+     * 工号
      */
-    private String idCard;
+    @TableField("id_card")
+    private String jobNo;
 
     /**
-     * 所属企业
+     * 所属部门
      */
-    private String enterprise;
+    @TableField("enterprise")
+    private String deptName;
+
+    /**
+     * 科室
+     */
+    @TableField("office")
+    private String office;
 
     /**
      * 岗位(关联字典表value)
@@ -56,14 +58,10 @@ public class User implements Serializable {
     private String jobRole;
 
     /**
-     * 所属行业(关联字典表value)
+     * 登录账号
      */
-    private String industry;
-
-    /**
-     * 邮箱(登录账号)
-     */
-    private String email;
+    @TableField("email")
+    private String account;
 
     /**
      * 密码
@@ -84,4 +82,116 @@ public class User implements Serializable {
     
     @TableField(exist = false)
     private Department department;
+
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getAvatar() {
+        return avatar;
+    }
+
+    public void setAvatar(String avatar) {
+        this.avatar = avatar;
+    }
+
+    public String getJobNo() {
+        return jobNo;
+    }
+
+    public void setJobNo(String jobNo) {
+        this.jobNo = jobNo;
+    }
+
+    public String getDeptName() {
+        return deptName;
+    }
+
+    public void setDeptName(String deptName) {
+        this.deptName = deptName;
+    }
+
+    public String getOffice() {
+        return office;
+    }
+
+    public void setOffice(String office) {
+        this.office = office;
+    }
+
+    public String getJobRole() {
+        return jobRole;
+    }
+
+    public void setJobRole(String jobRole) {
+        this.jobRole = jobRole;
+    }
+
+    public String getAccount() {
+        return account;
+    }
+
+    public void setAccount(String account) {
+        this.account = account;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public Integer getIsFirstLogin() {
+        return isFirstLogin;
+    }
+
+    public void setIsFirstLogin(Integer isFirstLogin) {
+        this.isFirstLogin = isFirstLogin;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getUpdatedAt() {
+        return updatedAt;
+    }
+
+    public void setUpdatedAt(LocalDateTime updatedAt) {
+        this.updatedAt = updatedAt;
+    }
+
+    public Long getDepartmentId() {
+        return departmentId;
+    }
+
+    public void setDepartmentId(Long departmentId) {
+        this.departmentId = departmentId;
+    }
+
+    public Department getDepartment() {
+        return department;
+    }
+
+    public void setDepartment(Department department) {
+        this.department = department;
+    }
 }

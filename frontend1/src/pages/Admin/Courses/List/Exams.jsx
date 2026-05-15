@@ -838,7 +838,7 @@ export default function Exams() {
                               </div>
                               <div>
                                 <span className="font-medium text-sm text-slate-800">{record.userName}</span>
-                                <span className="block text-[10px] text-slate-400">{record.idCard}</span>
+                                <span className="block text-[10px] text-slate-400">{record.jobNo}</span>
                               </div>
                             </div>
                           </td>

@@ -10,7 +10,7 @@ export default function StudentLogin() {
   const navigate = useNavigate();
 
   // === 登录表单状态 ===
-  const [idCard, setIdCard] = useState('');
+  const [account, setAccount] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -26,14 +26,14 @@ export default function StudentLogin() {
   // ==========================================
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!idCard.trim() || !password.trim()) {
-      return alert('请输入身份证号和密码！');
+    if (!account.trim() || !password.trim()) {
+      return alert('请输入账号和密码！');
     }
 
     setLoading(true);
     try {
       // 1. 登录并缓存 Token
-      const loginRes = await studentLogin({ idCard, password });
+      const loginRes = await studentLogin({ account: account.trim(), password });
       
       // 提取 token 并全量存入 localStorage 防御拦截器读取差异
       const token = loginRes?.token || loginRes?.satoken || loginRes?.data?.token || loginRes; 
@@ -128,7 +128,7 @@ export default function StudentLogin() {
           企培通 学员学习中心
         </h2>
         <p className="mt-2 text-center text-sm text-blue-100">
-          请输入您的身份证号与密码登录系统
+          请输入您的登录账号与密码登录系统
         </p>
       </div>
 
@@ -142,16 +142,16 @@ export default function StudentLogin() {
             <form className="space-y-6" onSubmit={handleLogin}>
               <div>
                 <label className="block text-sm font-medium text-slate-700">
-                  学员账号 (身份证号)
+                  登录账号
                 </label>
                 <div className="mt-1 relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                     <span className="material-symbols-outlined text-slate-400 text-[20px]">badge</span>
                   </div>
                   <input
-                    type="text" required value={idCard} onChange={(e) => setIdCard(e.target.value)}
+                    type="text" required value={account} onChange={(e) => setAccount(e.target.value)}
                     className="appearance-none block w-full pl-10 pr-3 py-2.5 border border-slate-300 rounded-lg placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition-colors"
-                    placeholder="请输入18位身份证号"
+                    placeholder="请输入登录账号"
                   />
                 </div>
               </div>
