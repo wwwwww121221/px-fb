@@ -65,10 +65,17 @@ export default function CourseList() {
 
   const initialFormData = { 
     id: 0, name: '', title: '', thumb: '', shortDesc: '', isRequired: 0, status: 0, 
-    categoryId: '', creditHours: 0, targetRoles: '', trainingBatch: '', courseMode: 0, 
+    categoryId: '', creditHours: 0, targetRoles: '', trainingBatch: '', courseMode: 1, 
     offlineLocation: '', chapters: [] 
   };
   const [formData, setFormData] = useState(initialFormData);
+
+  const getCourseModeLabel = (mode) => {
+    if (mode === 1) return '线上录播';
+    if (mode === 2) return '线上直播';
+    if (mode === 3) return '线下集中授课';
+    return '未设置';
+  };
 
   useEffect(() => { fetchCategories(); }, []);
   useEffect(() => {
@@ -445,7 +452,7 @@ export default function CourseList() {
                     <td className="px-6 py-4 whitespace-nowrap">
                        <div className="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-400">
                          <span>学分: {course.creditHours || 0}</span>
-                         <span>{course.isRequired === 1 ? '必修课' : '选修课'} | {course.courseMode === 0 ? '线上' : course.courseMode === 1 ? '线下' : '混合'}</span>
+                         <span>{course.isRequired === 1 ? '必修课' : '选修课'} | {getCourseModeLabel(course.courseMode)}</span>
                        </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -456,6 +463,9 @@ export default function CourseList() {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2">
                       <button onClick={() => navigate(`/admin/courses/build/${course.id}`)} className="text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded text-xs transition-colors shadow-sm">
                         排课
+                      </button>
+                      <button onClick={() => navigate(`/admin/courses/offline-sign/${course.id}`)} className="text-white bg-amber-500 hover:bg-amber-600 px-3 py-1.5 rounded text-xs transition-colors shadow-sm">
+                        签到
                       </button>
                       
                       {/* 🌟 核心拆分：[作业] 按钮和 [考试] 按钮 */}
@@ -582,9 +592,9 @@ export default function CourseList() {
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">授课方式</label>
                     <select value={formData.courseMode} onChange={e => setFormData({...formData, courseMode: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white transition-shadow">
-                      <option value={0}>纯线上视频</option>
-                      <option value={1}>纯线下授课</option>
-                      <option value={2}>线上线下混合</option>
+                      <option value={1}>线上录播</option>
+                      <option value={2}>线上直播</option>
+                      <option value={3}>线下集中授课</option>
                     </select>
                   </div>
                 </div>

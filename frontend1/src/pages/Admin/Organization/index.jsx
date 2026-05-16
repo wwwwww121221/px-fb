@@ -129,6 +129,20 @@ export default function Organization() {
     return names;
   };
 
+  const getOrgFieldsByDepartmentId = (departmentId) => {
+    const chain = getDeptChain(departmentId).filter(Boolean);
+    if (chain.length === 0) {
+      return { deptName: '', office: '' };
+    }
+    if (chain.length === 1) {
+      return { deptName: chain[0], office: '' };
+    }
+    return {
+      deptName: chain.slice(0, -1).join('-'),
+      office: chain[chain.length - 1] || ''
+    };
+  };
+
   const getUserOrgDisplay = (user) => {
     const chain = user?.departmentId ? getDeptChain(user.departmentId) : [];
     const dept1 = chain[0] || '';
@@ -158,13 +172,14 @@ export default function Organization() {
 
   const handleEditClick = (user) => {
     setIsEdit(true);
+    const syncOrgFields = user.departmentId ? getOrgFieldsByDepartmentId(user.departmentId) : null;
     setFormData({
       id: user.id,
       name: user.name || '',
       account: user.account || '',
       jobNo: user.jobNo || '',
-      deptName: user.deptName || '',
-      office: user.office || '',
+      deptName: syncOrgFields?.deptName || user.deptName || '',
+      office: syncOrgFields?.office || user.office || '',
       jobRole: user.jobRole || '',
       password: '', // 编辑时密码留空，后端判断为空则不修改
       departmentId: user.departmentId || '' 
@@ -192,7 +207,18 @@ export default function Organization() {
 
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      if (name === 'departmentId') {
+        const synced = getOrgFieldsByDepartmentId(value);
+        return {
+          ...prev,
+          departmentId: value,
+          deptName: synced.deptName,
+          office: synced.office
+        };
+      }
+      return { ...prev, [name]: value };
+    });
   };
 
   // 🌟 核心：对应 PUT /backend/user/update 和 POST /backend/user/create

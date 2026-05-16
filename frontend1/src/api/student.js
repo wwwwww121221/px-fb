@@ -75,6 +75,21 @@ export const reportProgress = (data) => {
 };
 
 // ==========================================
+// 前台学员端 - 线下签到 API
+// ==========================================
+export const getAttendanceSessions = (courseId) => {
+  return request.get(`/frontend/attendance/course/${courseId}/sessions`);
+};
+
+export const signInAttendanceSession = (sessionId, data) => {
+  return request.post(`/frontend/attendance/session/${sessionId}/sign-in`, data);
+};
+
+export const signOutAttendanceSession = (sessionId, data) => {
+  return request.post(`/frontend/attendance/session/${sessionId}/sign-out`, data);
+};
+
+// ==========================================
 // 前台学员端 - 证书与作业 API
 // ==========================================
 

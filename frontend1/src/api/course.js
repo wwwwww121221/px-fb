@@ -225,3 +225,30 @@ export const submitPracticalScore = (data) => {
 export const getExamStudentResults = (examId) => {
   return request.get(`/backend/exams/${examId}/student-results`);
 };
+
+// ==========================================
+// 6. 线下签到场次管理 API
+// ==========================================
+export const getOfflineSignSessions = (courseId) => {
+  return request.get(`/backend/course/${courseId}/offline-sign/sessions`);
+};
+
+export const getOfflineSignEligibleDepartments = (courseId) => {
+  return request.get(`/backend/course/${courseId}/offline-sign/department-tree`);
+};
+
+export const createOfflineSignSession = (courseId, data) => {
+  return request.post(`/backend/course/${courseId}/offline-sign/session`, data);
+};
+
+export const updateOfflineSignSession = (courseId, data) => {
+  return request.put(`/backend/course/${courseId}/offline-sign/session`, data);
+};
+
+export const deleteOfflineSignSession = (courseId, sessionId) => {
+  return request.delete(`/backend/course/${courseId}/offline-sign/session/${sessionId}`);
+};
+
+export const getOfflineSignRecords = (courseId, sessionId) => {
+  return request.get(`/backend/course/${courseId}/offline-sign/session/${sessionId}/records`);
+};

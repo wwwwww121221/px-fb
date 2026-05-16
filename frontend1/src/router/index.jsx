@@ -29,6 +29,7 @@ import SystemManagement from '../pages/Admin/System/index.jsx';
 import Department from '../pages/Admin/System/Department.jsx';
 import CourseCategory from '../pages/Admin/Courses/Category/index.jsx';
 import CourseBuild from '../pages/Admin/Courses/Build/index.jsx';
+import OfflineSignManagement from '../pages/Admin/Courses/OfflineSignPage.jsx';
 import CourseScoreCenter from '../pages/Admin/Courses/ScoreCenter/index.jsx';
 import CertificateSystem from '../pages/Admin/Certificates/System.jsx';
 
@@ -122,6 +123,7 @@ const router = createBrowserRouter([
       { path: 'courses/exams/:courseId', element: <ExamsManagement /> },
       { path: 'course-category', element: <CourseCategory /> },
       { path: 'courses/build/:id', element: <CourseBuild /> },
+      { path: 'courses/offline-sign/:courseId', element: <OfflineSignManagement /> },
       { path: 'courses/score/:courseId', element: <CourseScoreCenter /> },
       { path: 'certificates', element: <CertificateSystem /> },
       

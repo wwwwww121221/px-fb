@@ -82,7 +82,9 @@ public class FrontendProgressController {
         }
         int recordTotal = record.getTotalDuration() == null ? totalDuration : record.getTotalDuration();
         boolean isFinished = false;
-        if (recordTotal <= 0) {
+        if (isDocumentHour(hour)) {
+            isFinished = finishedDuration >= Math.max(1, recordTotal);
+        } else if (recordTotal <= 0) {
             isFinished = true;
         } else {
             isFinished = finishedDuration * 100L >= recordTotal * 95L;
@@ -153,6 +155,10 @@ public class FrontendProgressController {
             return true;
         }
         return StringUtils.hasText(hour.getName()) && hour.getName().contains("直播");
+    }
+
+    private boolean isDocumentHour(CourseHour hour) {
+        return hour != null && Integer.valueOf(1).equals(hour.getType());
     }
 
     @Data

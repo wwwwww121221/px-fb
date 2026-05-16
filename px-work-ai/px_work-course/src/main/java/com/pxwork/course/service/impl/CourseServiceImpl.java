@@ -15,6 +15,9 @@ import com.pxwork.course.entity.Course;
 import com.pxwork.course.entity.CourseAssignment;
 import com.pxwork.course.entity.CourseChapter;
 import com.pxwork.course.entity.CourseHour;
+import com.pxwork.course.entity.OfflineAttendance;
+import com.pxwork.course.entity.OfflineSignSession;
+import com.pxwork.course.entity.OfflineSignSessionDepartment;
 import com.pxwork.course.entity.CourseResource;
 import com.pxwork.course.entity.Exam;
 import com.pxwork.course.entity.Question;
@@ -26,6 +29,9 @@ import com.pxwork.course.service.CourseChapterService;
 import com.pxwork.course.service.CourseHourService;
 import com.pxwork.course.service.CourseService;
 import com.pxwork.course.service.ExamService;
+import com.pxwork.course.service.OfflineAttendanceService;
+import com.pxwork.course.service.OfflineSignSessionDepartmentService;
+import com.pxwork.course.service.OfflineSignSessionService;
 import com.pxwork.course.service.QuestionService;
 import com.pxwork.course.service.UserCourseEnrollmentService;
 
@@ -52,6 +58,15 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
 
     @Autowired
     private CourseAssignmentService courseAssignmentService;
+
+    @Autowired
+    private OfflineSignSessionService offlineSignSessionService;
+
+    @Autowired
+    private OfflineSignSessionDepartmentService offlineSignSessionDepartmentService;
+
+    @Autowired
+    private OfflineAttendanceService offlineAttendanceService;
 
     @Override
     public Course getCourseDetails(Long courseId) {
@@ -125,6 +140,21 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         // 5. 清理课程作业配置
         courseAssignmentService.remove(new LambdaQueryWrapper<CourseAssignment>()
                 .eq(CourseAssignment::getCourseId, courseId));
+
+        // 6. 清理线下签到场次与记录
+        List<Long> sessionIds = offlineSignSessionService.list(new LambdaQueryWrapper<OfflineSignSession>()
+                        .eq(OfflineSignSession::getCourseId, courseId))
+                .stream()
+                .map(OfflineSignSession::getId)
+                .collect(Collectors.toList());
+        if (!sessionIds.isEmpty()) {
+            offlineAttendanceService.remove(new LambdaQueryWrapper<OfflineAttendance>()
+                    .in(OfflineAttendance::getSessionId, sessionIds));
+            offlineSignSessionDepartmentService.remove(new LambdaQueryWrapper<OfflineSignSessionDepartment>()
+                    .in(OfflineSignSessionDepartment::getSessionId, sessionIds));
+        }
+        offlineSignSessionService.remove(new LambdaQueryWrapper<OfflineSignSession>()
+                .eq(OfflineSignSession::getCourseId, courseId));
 
         // 删除课程本身
         return removeById(courseId);
