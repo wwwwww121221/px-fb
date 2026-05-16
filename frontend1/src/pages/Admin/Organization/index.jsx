@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   getUserList, 
   createUser, 
@@ -26,6 +26,8 @@ export default function Organization() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false); 
   const [submitting, setSubmitting] = useState(false);
+  const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
+  const deptDropdownRef = useRef(null);
 
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [importFile, setImportFile] = useState(null);
@@ -37,7 +39,7 @@ export default function Organization() {
     id: null,
     name: '',
     account: '',
-    password: '',
+    password: '123456',
     jobNo: '',
     deptName: '',
     office: '',
@@ -137,9 +139,12 @@ export default function Organization() {
     if (chain.length === 1) {
       return { deptName: chain[0], office: '' };
     }
+    if (chain.length === 2) {
+      return { deptName: chain.join('-'), office: '' };
+    }
     return {
-      deptName: chain.slice(0, -1).join('-'),
-      office: chain[chain.length - 1] || ''
+      deptName: chain.slice(0, 2).join('-'),
+      office: chain[2] || ''
     };
   };
 
@@ -153,6 +158,13 @@ export default function Organization() {
     return { deptDisplay, officeDisplay };
   };
 
+  const getDepartmentOptionLabel = (dept) => {
+    if (!dept) return '(未分配部门)';
+    return `${'  '.repeat(dept.level || 0)}${dept.level > 0 ? '├ ' : ''}${dept.name}`;
+  };
+
+  const selectedDepartment = flatDepartments.find((dept) => String(dept.id) === String(formData.departmentId));
+
   const handleSearch = () => {
     setPagination(prev => ({ ...prev, current: 1 }));
     setQueryName(searchName);
@@ -161,6 +173,7 @@ export default function Organization() {
   const handleAddClick = () => {
     setIsEdit(false);
     setFormData(initialFormData);
+    setDeptDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -184,6 +197,7 @@ export default function Organization() {
       password: '', // 编辑时密码留空，后端判断为空则不修改
       departmentId: user.departmentId || '' 
     });
+    setDeptDropdownOpen(false);
     setIsModalOpen(true);
   };
 
@@ -220,6 +234,26 @@ export default function Organization() {
       return { ...prev, [name]: value };
     });
   };
+
+  useEffect(() => {
+    if (!deptDropdownOpen) return undefined;
+    const handleOutsideClick = (event) => {
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(event.target)) {
+        setDeptDropdownOpen(false);
+      }
+    };
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setDeptDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [deptDropdownOpen]);
 
   // 🌟 核心：对应 PUT /backend/user/update 和 POST /backend/user/create
   const handleSubmit = async (e) => {
@@ -494,12 +528,43 @@ export default function Organization() {
                   {/* 所属部门 */}
                   <div className="space-y-1 sm:col-span-2">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">组织部门</label>
-                    <select name="departmentId" value={formData.departmentId} onChange={handleFormChange} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white">
-                      <option value="">(未分配部门)</option>
-                      {flatDepartments.map(dept => (
-                        <option key={dept.id} value={dept.id}>{'　'.repeat(dept.level)} {dept.level > 0 ? '├ ' : ''} {dept.name}</option>
-                      ))}
-                    </select>
+                    <div className="relative" ref={deptDropdownRef}>
+                      <button
+                        type="button"
+                        onClick={() => setDeptDropdownOpen((prev) => !prev)}
+                        className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700 dark:text-white flex items-center justify-between text-left"
+                      >
+                        <span className="truncate">{selectedDepartment ? getDepartmentOptionLabel(selectedDepartment) : '(未分配部门)'}</span>
+                        <span className="material-symbols-outlined text-slate-400 text-[20px]">expand_more</span>
+                      </button>
+                      {deptDropdownOpen && (
+                        <div className="absolute z-20 mt-2 w-full rounded-xl border border-slate-200 bg-white shadow-lg max-h-64 overflow-y-auto dark:bg-slate-900 dark:border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleFormChange({ target: { name: 'departmentId', value: '' } });
+                              setDeptDropdownOpen(false);
+                            }}
+                            className="w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800"
+                          >
+                            (未分配部门)
+                          </button>
+                          {flatDepartments.map((dept) => (
+                            <button
+                              key={dept.id}
+                              type="button"
+                              onClick={() => {
+                                handleFormChange({ target: { name: 'departmentId', value: String(dept.id) } });
+                                setDeptDropdownOpen(false);
+                              }}
+                              className={`w-full px-3 py-2 text-left text-sm hover:bg-slate-50 dark:hover:bg-slate-800 ${String(formData.departmentId) === String(dept.id) ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300' : ''}`}
+                            >
+                              {getDepartmentOptionLabel(dept)}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div className="space-y-1">
@@ -514,9 +579,11 @@ export default function Organization() {
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">
                       登录密码 <span className="text-red-500">{!isEdit && '*'}</span> 
-                      {isEdit && <span className="text-xs text-slate-400 font-normal ml-1">(不修改请留空)</span>}
+                      {isEdit
+                        ? <span className="text-xs text-slate-400 font-normal ml-1">(不修改请留空)</span>
+                        : <span className="text-xs text-slate-400 font-normal ml-1">(默认 123456)</span>}
                     </label>
-                    <input required={!isEdit} name="password" value={formData.password || ''} onChange={handleFormChange} type="password" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="••••••••" />
+                    <input required={!isEdit} name="password" value={formData.password || ''} onChange={handleFormChange} type="password" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder={isEdit ? '••••••••' : '默认密码 123456'} />
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">工号</label>
@@ -566,6 +633,9 @@ export default function Organization() {
                   <div className="font-bold mb-1">支持列名</div>
                   <div className="leading-relaxed">
                     姓名、工号、部门、部门2、科室、职位（或 岗位角色）。未提供登录账号时会自动用工号作为登录账号；部门会按“部门→部门2→科室”自动建树并绑定。
+                  </div>
+                  <div className="mt-1 leading-relaxed">
+                    新导入学员默认登录密码统一为 123456，首次登录仍需修改密码。
                   </div>
                 </div>
 

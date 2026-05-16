@@ -22,7 +22,7 @@ export default function DepartmentManagement() {
   const [submitting, setSubmitting] = useState(false);
 
   // 表单初始状态 (parentId 默认为 0，代表顶级部门)
-  const initialFormData = { id: null, parentId: 0, name: '', sort: 0 };
+  const initialFormData = { id: null, parentId: 0, name: '', sort: 1 };
   const [formData, setFormData] = useState(initialFormData);
 
   // 初始化加载
@@ -165,7 +165,7 @@ export default function DepartmentManagement() {
       id: dept.id,
       parentId: dept.parentId || 0,
       name: dept.name,
-      sort: dept.sort || 0
+      sort: dept.sort && Number(dept.sort) > 0 ? dept.sort : 1
     });
     setIsModalOpen(true);
   };

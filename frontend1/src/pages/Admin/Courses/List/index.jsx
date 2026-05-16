@@ -63,18 +63,38 @@ export default function CourseList() {
   // 🌟 4. 考试操作中枢弹窗状态 (点击表格行内[考试]按钮打开)
   const [examHubModal, setExamHubModal] = useState({ isOpen: false, courseId: null, courseName: '' });
 
+  const COURSE_MODE_OPTIONS = [
+    { value: '1', label: '线上录播' },
+    { value: '2', label: '线上直播' },
+    { value: '3', label: '线下集中授课' }
+  ];
+  const normalizeCourseModes = (value) => {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item)).filter(Boolean);
+    }
+    if (value === null || value === undefined || value === '') {
+      return ['1'];
+    }
+    return String(value)
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  };
+  const serializeCourseModes = (value) => normalizeCourseModes(value).join(',');
+  const hasCourseMode = (value, target) => normalizeCourseModes(value).includes(String(target));
+
   const initialFormData = { 
     id: 0, name: '', title: '', thumb: '', shortDesc: '', isRequired: 0, status: 0, 
-    categoryId: '', creditHours: 0, targetRoles: '', trainingBatch: '', courseMode: 1, 
+    categoryId: '', creditHours: 0, targetRoles: '', trainingBatch: '', courseModes: ['1'], 
     offlineLocation: '', chapters: [] 
   };
   const [formData, setFormData] = useState(initialFormData);
 
   const getCourseModeLabel = (mode) => {
-    if (mode === 1) return '线上录播';
-    if (mode === 2) return '线上直播';
-    if (mode === 3) return '线下集中授课';
-    return '未设置';
+    const labels = normalizeCourseModes(mode)
+      .map((item) => COURSE_MODE_OPTIONS.find((option) => option.value === item)?.label)
+      .filter(Boolean);
+    return labels.length > 0 ? labels.join(' / ') : '未设置';
   };
 
   useEffect(() => { fetchCategories(); }, []);
@@ -194,7 +214,12 @@ export default function CourseList() {
     setFetchingDetail(true);
     try {
       const detailData = await getCourseDetail(courseId);
-      setFormData({ ...initialFormData, ...detailData, chapters: detailData.chapters || [] });
+      setFormData({
+        ...initialFormData,
+        ...detailData,
+        courseModes: normalizeCourseModes(detailData.courseModes || detailData.courseMode),
+        chapters: detailData.chapters || []
+      });
       setIsEdit(true);
       setIsModalOpen(true);
     } catch (error) { alert('获取课程详情失败，请检查网络'); } 
@@ -204,14 +229,16 @@ export default function CourseList() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.categoryId) return alert('请填写完整的必填项（名称、分类）！'); 
+    if (normalizeCourseModes(formData.courseModes).length === 0) return alert('请至少选择一种授课方式！');
     
     const payload = {
       ...formData,
       categoryId: parseInt(formData.categoryId),
       isRequired: parseInt(formData.isRequired),
-      courseMode: parseInt(formData.courseMode),
+      courseMode: serializeCourseModes(formData.courseModes),
       creditHours: parseFloat(formData.creditHours || 0)
     };
+    delete payload.courseModes;
 
     setSubmitting(true);
     try {
@@ -591,11 +618,31 @@ export default function CourseList() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">授课方式</label>
-                    <select value={formData.courseMode} onChange={e => setFormData({...formData, courseMode: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white transition-shadow">
-                      <option value={1}>线上录播</option>
-                      <option value={2}>线上直播</option>
-                      <option value={3}>线下集中授课</option>
-                    </select>
+                    <div className="grid grid-cols-1 gap-2">
+                      {COURSE_MODE_OPTIONS.map((option) => {
+                        const checked = hasCourseMode(formData.courseModes, option.value);
+                        return (
+                          <label
+                            key={option.value}
+                            className={`flex items-center gap-3 rounded-lg border px-3 py-2 cursor-pointer transition-colors ${checked ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-500' : 'border-slate-300 bg-white dark:bg-slate-800 dark:border-slate-700'}`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const nextModes = new Set(normalizeCourseModes(formData.courseModes));
+                                if (e.target.checked) nextModes.add(option.value);
+                                else nextModes.delete(option.value);
+                                setFormData({ ...formData, courseModes: Array.from(nextModes) });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-slate-700 dark:text-slate-200">{option.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-slate-400">可同时勾选多种授课方式</p>
                   </div>
                 </div>
                 <div className="space-y-1.5">

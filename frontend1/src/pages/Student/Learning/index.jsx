@@ -17,11 +17,31 @@ import { buildPreviewTarget, triggerDownload } from '../../../utils/filePreview'
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
+const hasCourseMode = (value, target) => {
+  if (value === null || value === undefined || value === '') return false;
+  return String(value)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .includes(String(target));
+};
+
+const formatTime = (value) => {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return String(value).replace('T', ' ').slice(0, 16);
+  }
+  const pad = (num) => String(num).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 export default function StudentLearning() {
   const navigate = useNavigate();
   const { id } = useParams(); 
 
   const [activeTab, setActiveTab] = useState('intro');
+  const [catalogCollapsed, setCatalogCollapsed] = useState(false);
   const [loading, setLoading] = useState(true);
   
   const [courseData, setCourseData] = useState(null);
@@ -40,6 +60,8 @@ export default function StudentLearning() {
   const scanStreamRef = useRef(null);
   const scanTimerRef = useRef(null);
   const docReportedProgressRef = useRef('');
+  const docViewerRef = useRef(null);
+  const docPageRefs = useRef({});
 
   const openPreview = (resource) => {
     setPreviewModal({
@@ -121,6 +143,7 @@ export default function StudentLearning() {
     const total = Math.max(1, docTotalPages || 1);
     const target = Math.min(Math.max(1, nextPage), total);
     setDocCurrentPage(target);
+    docPageRefs.current[target]?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     reportDocumentProgress(target, total).catch((error) => {
       console.warn('保存文档页码进度失败:', error);
     });
@@ -146,6 +169,9 @@ export default function StudentLearning() {
     reportDocumentProgress(restoredPage, total, true).catch((error) => {
       console.warn('初始化文档进度失败:', error);
     });
+    setTimeout(() => {
+      docPageRefs.current[restoredPage]?.scrollIntoView({ block: 'start' });
+    }, 80);
   };
   
   // 🌟 组件卸载时保存进度
@@ -173,7 +199,40 @@ export default function StudentLearning() {
     setDocLoadError('');
     setDocLoading(Boolean(resourceUrl));
     docReportedProgressRef.current = '';
+    docPageRefs.current = {};
   }, [activeLesson?.id, resourceUrl]);
+
+  useEffect(() => {
+    if (!resourceUrl || docTotalPages <= 0 || !docViewerRef.current) {
+      return undefined;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top);
+        if (!visible.length) {
+          return;
+        }
+        const page = Number(visible[0].target.getAttribute('data-page-number'));
+        if (!page) {
+          return;
+        }
+        setDocCurrentPage(page);
+        reportDocumentProgress(page, docTotalPages).catch((error) => {
+          console.warn('保存文档滚动进度失败:', error);
+        });
+      },
+      {
+        root: docViewerRef.current,
+        threshold: 0.6
+      }
+    );
+    Object.values(docPageRefs.current).forEach((node) => {
+      if (node) observer.observe(node);
+    });
+    return () => observer.disconnect();
+  }, [resourceUrl, docTotalPages, activeLesson?.id]);
   
   useEffect(() => {
     const fetchDetailAndProgress = async () => {
@@ -328,6 +387,48 @@ export default function StudentLearning() {
     if (id) fetchDetailAndProgress();
   }, [id]);
 
+  useEffect(() => {
+    const canScan = signModal.open && signModal.session?.signMethod === 1 && window.BarcodeDetector && navigator.mediaDevices?.getUserMedia;
+    if (!canScan) return undefined;
+
+    let disposed = false;
+    const startScan = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+        if (disposed) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        scanStreamRef.current = stream;
+        if (scanVideoRef.current) {
+          scanVideoRef.current.srcObject = stream;
+          await scanVideoRef.current.play().catch(() => {});
+        }
+        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+        scanTimerRef.current = window.setInterval(async () => {
+          if (!scanVideoRef.current) return;
+          try {
+            const codes = await detector.detect(scanVideoRef.current);
+            if (codes?.length && codes[0]?.rawValue) {
+              setSignModal((prev) => ({ ...prev, verifyCode: codes[0].rawValue }));
+              stopScanner();
+            }
+          } catch (error) {
+            console.warn('二维码识别失败', error);
+          }
+        }, 900);
+      } catch (error) {
+        console.warn('打开摄像头失败，改用手动输入', error);
+      }
+    };
+
+    startScan();
+    return () => {
+      disposed = true;
+      stopScanner();
+    };
+  }, [signModal.open, signModal.session?.signMethod]);
+
   if (loading) {
     return (
       <div className="flex flex-col h-screen w-screen items-center justify-center bg-slate-900 text-white">
@@ -395,48 +496,6 @@ export default function StudentLearning() {
     setSignModal({ open: false, session: null, action: 'signIn', verifyCode: '' });
   };
 
-  useEffect(() => {
-    const canScan = signModal.open && signModal.session?.signMethod === 1 && window.BarcodeDetector && navigator.mediaDevices?.getUserMedia;
-    if (!canScan) return undefined;
-
-    let disposed = false;
-    const startScan = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        if (disposed) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        scanStreamRef.current = stream;
-        if (scanVideoRef.current) {
-          scanVideoRef.current.srcObject = stream;
-          await scanVideoRef.current.play().catch(() => {});
-        }
-        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-        scanTimerRef.current = window.setInterval(async () => {
-          if (!scanVideoRef.current) return;
-          try {
-            const codes = await detector.detect(scanVideoRef.current);
-            if (codes?.length && codes[0]?.rawValue) {
-              setSignModal((prev) => ({ ...prev, verifyCode: codes[0].rawValue }));
-              stopScanner();
-            }
-          } catch (error) {
-            console.warn('二维码识别失败', error);
-          }
-        }, 900);
-      } catch (error) {
-        console.warn('打开摄像头失败，改用手动输入', error);
-      }
-    };
-
-    startScan();
-    return () => {
-      disposed = true;
-      stopScanner();
-    };
-  }, [signModal.open, signModal.session?.signMethod]);
-
   const refreshAttendanceSessions = async () => {
     if (!id) return;
     setAttendanceLoading(true);
@@ -501,6 +560,8 @@ export default function StudentLearning() {
     return '未设置';
   };
 
+  const isAttendanceTab = activeTab === 'attendance' && hasCourseMode(courseData?.courseMode, 3);
+
   // 调试信息：查看当前选中课时的完整数据
   console.log('📚 当前选中课时数据:', {
     activeLesson,
@@ -535,7 +596,7 @@ export default function StudentLearning() {
           </div>
         </div>
 
-        {/* 🌟 真实的视频播放器区域 */}
+        {!isAttendanceTab && (
         <div className="w-full bg-black flex-shrink-0 flex items-center justify-center relative shadow-inner group" style={{ aspectRatio: '21/9', maxHeight: '60vh' }}>
           {courseData.chapters.length === 0 ? (
              <div className="text-slate-400 flex flex-col items-center">
@@ -636,7 +697,7 @@ export default function StudentLearning() {
                       )}
                       <button
                         type="button"
-                        onClick={() => openPreview({ name: activeLesson?.name, url: resourceUrl, type: activeLesson?.type })}
+                        onClick={() => openPreview({ name: activeLesson?.name, url: resourceUrl })}
                         className="px-4 py-2 bg-white text-slate-700 rounded-lg border border-slate-300 hover:bg-slate-50 text-sm flex items-center gap-2"
                       >
                         <span className="material-symbols-outlined text-[18px]">open_in_full</span>
@@ -691,7 +752,7 @@ export default function StudentLearning() {
                           {docLoading && (
                             <div className="py-10 text-sm text-slate-500">正在加载文档页数...</div>
                           )}
-                          <div className="overflow-auto w-full flex justify-center">
+                          <div ref={docViewerRef} className="overflow-y-auto w-full max-h-[calc(100vh-240px)] pr-2">
                             <Document
                               file={docPreviewTarget.url}
                               loading=""
@@ -705,11 +766,32 @@ export default function StudentLearning() {
                                 setDocLoadError(error?.message || '文档源地址不可用');
                               }}
                             >
-                              <Page
-                                pageNumber={docCurrentPage}
-                                width={Math.max(320, Math.min(window.innerWidth - 420, 980))}
-                                renderAnnotationLayer={false}
-                              />
+                              <div className="flex flex-col items-center gap-4">
+                                {Array.from({ length: docTotalPages || 0 }, (_, index) => {
+                                  const pageNumber = index + 1;
+                                  return (
+                                    <div
+                                      key={pageNumber}
+                                      ref={(node) => {
+                                        if (node) {
+                                          docPageRefs.current[pageNumber] = node;
+                                        } else {
+                                          delete docPageRefs.current[pageNumber];
+                                        }
+                                      }}
+                                      data-page-number={pageNumber}
+                                      className="w-full flex justify-center"
+                                    >
+                                      <Page
+                                        pageNumber={pageNumber}
+                                        width={Math.max(320, Math.min(window.innerWidth - (catalogCollapsed ? 120 : 440), 980))}
+                                        renderTextLayer={false}
+                                        renderAnnotationLayer={false}
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
                             </Document>
                           </div>
                         </>
@@ -754,12 +836,13 @@ export default function StudentLearning() {
              </div>
           )}
         </div>
+        )}
 
         <div className="flex-1 flex flex-col bg-white overflow-hidden border-t border-slate-200">
           <div className="flex px-6 border-b border-slate-200 shrink-0">
             <button onClick={() => setActiveTab('intro')} className={`px-4 py-4 font-bold text-sm transition-all border-b-2 ${activeTab === 'intro' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>课程简介</button>
             <button onClick={() => setActiveTab('materials')} className={`px-4 py-4 font-bold text-sm transition-all border-b-2 ${activeTab === 'materials' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>课件资料</button>
-            {Number(courseData.courseMode) === 3 && (
+            {hasCourseMode(courseData.courseMode, 3) && (
               <button onClick={() => setActiveTab('attendance')} className={`px-4 py-4 font-bold text-sm transition-all border-b-2 ${activeTab === 'attendance' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>线下签到</button>
             )}
           </div>
@@ -840,13 +923,9 @@ export default function StudentLearning() {
                 )}
               </div>
             )}
-            {activeTab === 'attendance' && Number(courseData.courseMode) === 3 && (
+            {activeTab === 'attendance' && hasCourseMode(courseData.courseMode, 3) && (
               <div className="animate-in fade-in duration-300">
                 <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="font-bold text-slate-800 text-lg">线下签到场次</h3>
-                    <p className="text-sm text-slate-500 mt-1">现场签到完成考勤，课后回看仍可继续在本课程中学习</p>
-                  </div>
                   <button onClick={refreshAttendanceSessions} className="px-3 py-2 rounded-lg text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200">
                     刷新
                   </button>
@@ -919,85 +998,112 @@ export default function StudentLearning() {
       </div>
 
       {/* ================= 右侧：课程目录与进度 ================= */}
-      <div className="w-[380px] bg-white border-l border-slate-200 flex flex-col h-full flex-shrink-0 shadow-[-4px_0_15px_rgb(0,0,0,0.03)] z-20">
+      <div className={`${catalogCollapsed ? 'w-[56px]' : 'w-[380px]'} relative bg-white border-l border-slate-200 flex flex-col h-full flex-shrink-0 shadow-[-4px_0_15px_rgb(0,0,0,0.03)] z-20 transition-all duration-300`}>
+        <button
+          type="button"
+          onClick={() => setCatalogCollapsed((prev) => !prev)}
+          className="absolute left-0 top-5 -translate-x-1/2 z-30 h-10 w-10 rounded-full border border-slate-200 bg-white text-blue-600 shadow-md hover:bg-blue-50 flex items-center justify-center"
+          title={catalogCollapsed ? '展开课程目录' : '收起课程目录'}
+        >
+          <span className={`material-symbols-outlined text-[20px] transition-transform ${catalogCollapsed ? 'rotate-180' : ''}`}>
+            chevron_right
+          </span>
+        </button>
         
-        <div className="p-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
-          <div className="flex justify-between items-end mb-2">
-            <h2 className="font-bold text-lg text-slate-800">课程目录</h2>
-            <span className={`text-sm font-bold ${courseData.progress === 100 ? 'text-emerald-500' : 'text-blue-600'}`}>
-              已学 {courseData.progress}%
-            </span>
-          </div>
-          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
-            <div 
-              className={`h-full rounded-full transition-all duration-1000 ${courseData.progress === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} 
-              style={{ width: `${courseData.progress}%` }}
-            ></div>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {courseData.chapters.length === 0 ? (
-            <div className="p-10 text-center text-slate-400 text-sm">
-              <span className="material-symbols-outlined text-4xl mb-2 opacity-50">folder_open</span>
-              <p>该课程暂无课时大纲</p>
+        {catalogCollapsed ? (
+          <div className="flex-1 flex flex-col items-center py-5 gap-4 bg-slate-50/60">
+            <div className={`text-xs font-bold ${courseData.progress === 100 ? 'text-emerald-500' : 'text-blue-600'}`}>
+              {courseData.progress}%
             </div>
-          ) : (
-            courseData.chapters.map((chapter, index) => (
-              <div key={chapter.id || index} className="border-b border-slate-100">
-                
-                <div className="bg-slate-50/80 px-5 py-3 text-sm font-bold text-slate-700 flex items-center gap-2">
-                  <span className="bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded text-[10px]">章节</span>
-                  {chapter.name}
-                </div>
-                
-                <div className="flex flex-col">
-                  {/* 🌟 修复：遍历 lessons 而不是 hours */}
-                  {(chapter.lessons || []).map((lesson, lIdx) => {
-                    const isPlaying = activeLesson?.id === lesson.id;
-                    const isVideoType = lesson.type === 0 || !!lesson.playbackUrl;
-                    const isLiveType = lesson.type === 2;
-                    
-                    return (
-                      <div 
-                        key={lesson.id || lIdx}
-                        onClick={() => handleLessonSelect(lesson)}
-                        className={`flex flex-col px-5 py-3 transition-colors cursor-pointer border-l-4 ${isPlaying ? 'bg-blue-50/50 border-blue-600' : 'border-transparent hover:bg-slate-50'}`}
-                      >
-                        <div className="flex items-start gap-3">
-                          <div className="mt-0.5 shrink-0">
-                            {isLiveType ? (
-                              // 直播类型图标
-                              isPlaying 
-                                ? <span className="material-symbols-outlined text-[18px] text-red-600 animate-pulse">live_tv</span>
-                                : <span className="material-symbols-outlined text-[18px] text-red-400">live_tv</span>
-                            ) : isPlaying 
-                              ? <span className={`material-symbols-outlined text-[18px] text-blue-600 ${isVideoType ? 'animate-pulse' : ''}`}>{isVideoType ? 'play_circle' : 'description'}</span> 
-                              : <span className="material-symbols-outlined text-[18px] text-slate-400">{isVideoType ? 'play_circle' : 'article'}</span>}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className={`text-sm truncate ${isPlaying ? 'font-bold text-blue-700' : 'font-medium text-slate-700'}`} title={lesson.name}>
-                              {lesson.name}
-                            </div>
-                            {lesson.duration > 0 && (
-                              <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                                <span className="material-symbols-outlined text-[12px]">schedule</span> {lesson.duration} 分钟
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                  {(!chapter.lessons || chapter.lessons.length === 0) && (
-                    <div className="px-8 py-3 text-xs text-slate-400 italic">暂无课时内容</div>
-                  )}
-                </div>
-
+            <div className="w-2 flex-1 max-h-40 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className={`w-full rounded-full transition-all duration-1000 ${courseData.progress === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`}
+                style={{ height: `${courseData.progress}%` }}
+              ></div>
+            </div>
+            <div className="writing-mode-vertical text-[12px] font-bold text-slate-500 tracking-[0.2em]" style={{ writingMode: 'vertical-rl' }}>
+              课程目录
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="p-5 border-b border-slate-100 bg-slate-50/50 shrink-0">
+              <div className="flex justify-between items-end mb-2">
+                <h2 className="font-bold text-lg text-slate-800">课程目录</h2>
+                <span className={`text-sm font-bold ${courseData.progress === 100 ? 'text-emerald-500' : 'text-blue-600'}`}>
+                  已学 {courseData.progress}%
+                </span>
               </div>
-            ))
-          )}
-        </div>
+              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-1000 ${courseData.progress === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} 
+                  style={{ width: `${courseData.progress}%` }}
+                ></div>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {courseData.chapters.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 text-sm">
+                  <span className="material-symbols-outlined text-4xl mb-2 opacity-50">folder_open</span>
+                  <p>该课程暂无课时大纲</p>
+                </div>
+              ) : (
+                courseData.chapters.map((chapter, index) => (
+                  <div key={chapter.id || index} className="border-b border-slate-100">
+                    
+                    <div className="bg-slate-50/80 px-5 py-3 text-sm font-bold text-slate-700 flex items-center gap-2">
+                      <span className="bg-slate-200 text-slate-500 px-1.5 py-0.5 rounded text-[10px]">章节</span>
+                      {chapter.name}
+                    </div>
+                    
+                    <div className="flex flex-col">
+                      {(chapter.lessons || []).map((lesson, lIdx) => {
+                        const isPlaying = activeLesson?.id === lesson.id;
+                        const isVideoType = lesson.type === 0 || !!lesson.playbackUrl;
+                        const isLiveType = lesson.type === 2;
+                        
+                        return (
+                          <div 
+                            key={lesson.id || lIdx}
+                            onClick={() => handleLessonSelect(lesson)}
+                            className={`flex flex-col px-5 py-3 transition-colors cursor-pointer border-l-4 ${isPlaying ? 'bg-blue-50/50 border-blue-600' : 'border-transparent hover:bg-slate-50'}`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className="mt-0.5 shrink-0">
+                                {isLiveType ? (
+                                  isPlaying 
+                                    ? <span className="material-symbols-outlined text-[18px] text-red-600 animate-pulse">live_tv</span>
+                                    : <span className="material-symbols-outlined text-[18px] text-red-400">live_tv</span>
+                                ) : isPlaying 
+                                  ? <span className={`material-symbols-outlined text-[18px] text-blue-600 ${isVideoType ? 'animate-pulse' : ''}`}>{isVideoType ? 'play_circle' : 'description'}</span> 
+                                  : <span className="material-symbols-outlined text-[18px] text-slate-400">{isVideoType ? 'play_circle' : 'article'}</span>}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className={`text-sm truncate ${isPlaying ? 'font-bold text-blue-700' : 'font-medium text-slate-700'}`} title={lesson.name}>
+                                  {lesson.name}
+                                </div>
+                                {lesson.duration > 0 && (
+                                  <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                                    <span className="material-symbols-outlined text-[12px]">schedule</span> {lesson.duration} 分钟
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {(!chapter.lessons || chapter.lessons.length === 0) && (
+                        <div className="px-8 py-3 text-xs text-slate-400 italic">暂无课时内容</div>
+                      )}
+                    </div>
+
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       <FilePreviewModal

@@ -52,6 +52,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 @RestController
 @RequestMapping("/backend/user")
 public class UserController {
+    private static final String DEFAULT_FRONTEND_USER_PASSWORD = "123456";
 
     @Autowired
     private UserService userService;
@@ -207,9 +208,7 @@ public class UserController {
             user.setOffice(office);
             user.setJobRole(jobRoleValue);
             user.setDepartmentId(departmentId);
-            String passwordSeed = StringUtils.hasText(jobNo) ? jobNo : account;
-            String rawPassword = passwordSeed.length() > 6 ? passwordSeed.substring(passwordSeed.length() - 6) : passwordSeed;
-            user.setPassword(SaSecureUtil.sha256(rawPassword));
+            user.setPassword(SaSecureUtil.sha256(DEFAULT_FRONTEND_USER_PASSWORD));
             user.setIsFirstLogin(1);
             importUserMap.put(account, user);
         }

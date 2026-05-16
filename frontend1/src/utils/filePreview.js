@@ -1,14 +1,16 @@
 export function getFileExtension({ name, url }) {
-  const fromName = (name || '').split('.').pop();
-  if (fromName && fromName !== name) return fromName.toLowerCase();
+  const safeName = typeof name === 'string' ? name : '';
+  const safeUrl = typeof url === 'string' ? url : '';
+  const fromName = safeName.split('.').pop();
+  if (fromName && fromName !== safeName) return fromName.toLowerCase();
   try {
-    const parsed = new URL(url);
+    const parsed = new URL(safeUrl);
     const pathname = parsed.pathname || '';
     const last = pathname.split('/').pop() || '';
     const fromPath = last.split('.').pop();
     if (fromPath && fromPath !== last) return fromPath.toLowerCase();
   } catch (e) {
-    const pathname = (url || '').split('?')[0].split('#')[0];
+    const pathname = safeUrl.split('?')[0].split('#')[0];
     const last = pathname.split('/').pop() || '';
     const fromPath = last.split('.').pop();
     if (fromPath && fromPath !== last) return fromPath.toLowerCase();
@@ -18,7 +20,7 @@ export function getFileExtension({ name, url }) {
 
 export function classifyFile({ name, url, mimeType }) {
   const ext = getFileExtension({ name, url });
-  const type = (mimeType || '').toLowerCase();
+  const type = typeof mimeType === 'string' ? mimeType.toLowerCase() : '';
 
   const isPdf = type.includes('pdf') || ext === 'pdf';
   const isImage = type.startsWith('image/') || ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext);

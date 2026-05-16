@@ -10,6 +10,10 @@ import {
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
+
+  const isCourseCompleted = (course) => {
+    return Boolean(course?.hasFinalExam && course?.passedFinalExam && course?.hasCertificate);
+  };
   
   // 状态栏管理：'explore' 选课大厅 | 'my' 我的课程 | 'learning' 学习中 | 'completed' 已学完
   const [activeTab, setActiveTab] = useState('explore'); 
@@ -66,9 +70,14 @@ export default function StudentDashboard() {
             cover: c.thumb || 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?ixlib=rb-4.0.3&auto=format&fit=crop&w=800',
             progress: progress,
             totalLessons: c.creditHours || 0,
-            status: progress === 100 ? 'completed' : 'learning'
+            hasFinalExam: Boolean(c.hasFinalExam),
+            passedFinalExam: Boolean(c.passedFinalExam),
+            hasCertificate: Boolean(c.hasCertificate)
           };
-        }));
+        })).then((courses) => courses.map((course) => ({
+          ...course,
+          status: isCourseCompleted(course) ? 'completed' : 'learning'
+        })));
         
         console.log('📚 我的课程（含进度）:', formattedMyProgress);
         setMyCourses(formattedMyProgress);
@@ -76,8 +85,8 @@ export default function StudentDashboard() {
         
         // 🌟 根据课程列表计算统计数据
         const total = formattedMyProgress.length;
-        const learning = formattedMyProgress.filter(c => c.progress > 0 && c.progress < 100).length;
-        const completed = formattedMyProgress.filter(c => c.progress === 100).length;
+        const completed = formattedMyProgress.filter((c) => c.status === 'completed').length;
+        const learning = total - completed;
         setStats({ total, learning, completed });
       }
 
@@ -143,9 +152,11 @@ export default function StudentDashboard() {
               {userInfo ? `${userInfo.name} 的学习大厅` : '我的学习大厅'}
             </h2>
             <div className="flex items-center gap-3 mt-2">
-              <span className="text-xs font-medium bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md border border-blue-100">
-                {userInfo?.deptName || '俊郎学堂学员'}
-              </span>
+              {userInfo?.deptName ? (
+                <span className="text-xs font-medium bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md border border-blue-100">
+                  {userInfo.deptName}
+                </span>
+              ) : null}
               {userInfo?.jobRole && (
                 <span className="text-xs text-slate-500 flex items-center gap-1">
                   <span className="material-symbols-outlined text-[14px]">work</span>
@@ -236,7 +247,7 @@ export default function StudentDashboard() {
 
                 <div className={`flex justify-between text-xs text-slate-400 ${activeTab === 'explore' ? 'mt-auto' : ''}`}>
                   <span>学时: {course.totalLessons}</span>
-                  {activeTab !== 'explore' && (course.lastLearned ? <span>上次学习: {course.lastLearned}</span> : <span>尚未开始</span>)}
+                  {activeTab !== 'explore' && course.lastLearned ? <span>上次学习: {course.lastLearned}</span> : null}
                 </div>
               </div>
 

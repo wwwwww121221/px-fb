@@ -78,7 +78,7 @@ public class Course implements Serializable {
 
     private String trainingBatch;
 
-    private Integer courseMode;
+    private String courseMode;
 
     private String offlineLocation;
 

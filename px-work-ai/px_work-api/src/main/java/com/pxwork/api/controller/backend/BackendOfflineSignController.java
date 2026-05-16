@@ -514,10 +514,19 @@ public class BackendOfflineSignController {
         if (course == null || course.getId() == null) {
             return;
         }
-        if (!Integer.valueOf(3).equals(course.getCourseMode())) {
+        java.util.LinkedHashSet<String> modes = new java.util.LinkedHashSet<>();
+        if (StringUtils.hasText(course.getCourseMode())) {
+            for (String mode : course.getCourseMode().split(",")) {
+                if (StringUtils.hasText(mode)) {
+                    modes.add(mode.trim());
+                }
+            }
+        }
+        if (!modes.contains("3")) {
+            modes.add("3");
             Course update = new Course();
             update.setId(course.getId());
-            update.setCourseMode(3);
+            update.setCourseMode(String.join(",", modes));
             courseService.updateById(update);
         }
     }

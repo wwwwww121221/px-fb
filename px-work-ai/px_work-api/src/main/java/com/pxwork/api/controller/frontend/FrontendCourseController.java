@@ -17,18 +17,22 @@ import org.springframework.web.bind.annotation.RestController;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.pxwork.common.utils.Result;
 import com.pxwork.common.utils.StpUserUtil;
+import com.pxwork.course.entity.Certificate;
 import com.pxwork.course.entity.Course;
 import com.pxwork.course.entity.CourseChapter;
 import com.pxwork.course.entity.CourseHour;
 import com.pxwork.course.entity.CourseResource;
 import com.pxwork.course.entity.Exam;
 import com.pxwork.course.entity.UserCourseEnrollment;
+import com.pxwork.course.entity.UserCourseResult;
+import com.pxwork.course.service.CertificateService;
 import com.pxwork.course.service.CourseChapterService;
 import com.pxwork.course.service.CourseHourService;
 import com.pxwork.course.service.CourseResourceService;
 import com.pxwork.course.service.CourseService;
 import com.pxwork.course.service.ExamService;
 import com.pxwork.course.service.UserCourseEnrollmentService;
+import com.pxwork.course.service.UserCourseResultService;
 import com.pxwork.resource.entity.Resource;
 import com.pxwork.resource.service.ResourceService;
 
@@ -58,6 +62,12 @@ public class FrontendCourseController {
     
     @Autowired
     private ExamService examService;
+
+    @Autowired
+    private UserCourseResultService userCourseResultService;
+
+    @Autowired
+    private CertificateService certificateService;
 
     @Autowired
     private ResourceService resourceService;
@@ -115,22 +125,32 @@ public class FrontendCourseController {
         result.put("hours", hours); 
         result.put("chapterTree", chapterTree); // 现在它是一个标准的、带 children 的树形数组了
 
-        // 5. 查出该课程关联的所有【课件资源ID】
+        // 5. 汇总该课程的资料：课程级挂载资料 + 各课时绑定资料
+        java.util.LinkedHashSet<Long> resourceIds = new java.util.LinkedHashSet<>();
         List<CourseResource> courseResources = courseResourceService.list(
                 new LambdaQueryWrapper<CourseResource>().eq(CourseResource::getCourseId, id));
+        courseResources.stream()
+                .map(CourseResource::getResourceId)
+                .filter(resourceId -> resourceId != null && resourceId > 0)
+                .forEach(resourceIds::add);
+        hours.stream()
+                .map(CourseHour::getResourceId)
+                .filter(resourceId -> resourceId != null && resourceId > 0)
+                .forEach(resourceIds::add);
 
         List<Resource> actualResources = new java.util.ArrayList<>();
-        if (!courseResources.isEmpty()) {
-            // 提取出所有的 resourceId
-            List<Long> resourceIds = courseResources.stream()
-                    .map(CourseResource::getResourceId)
-                    .collect(Collectors.toList());
-
-            // 去真正的素材表里把包含 url、name、type 的完整文件信息查出来！
-            actualResources = resourceService.listByIds(resourceIds);
+        if (!resourceIds.isEmpty()) {
+            List<Resource> resources = resourceService.listByIds(resourceIds);
+            Map<Long, Resource> resourceMap = resources.stream()
+                    .collect(Collectors.toMap(Resource::getId, resource -> resource, (left, right) -> left));
+            resourceIds.forEach(resourceId -> {
+                Resource resource = resourceMap.get(resourceId);
+                if (resource != null) {
+                    actualResources.add(resource);
+                }
+            });
         }
 
-        // 🔴 关键：把真正的文件列表返回给前端
         result.put("resources", actualResources);
 
         // 6. 查出该课程关联的所有【考试】
@@ -194,6 +214,21 @@ public class FrontendCourseController {
         }
         Set<Long> courseIds = enrollments.stream().map(UserCourseEnrollment::getCourseId).collect(Collectors.toSet());
         List<Course> courses = courseService.list(new LambdaQueryWrapper<Course>().in(Course::getId, courseIds));
+        List<Exam> exams = examService.list(new LambdaQueryWrapper<Exam>().in(Exam::getCourseId, courseIds));
+        Map<Long, Long> examCountMap = exams.stream()
+                .collect(Collectors.groupingBy(Exam::getCourseId, Collectors.counting()));
+        List<UserCourseResult> courseResults = userCourseResultService.list(new LambdaQueryWrapper<UserCourseResult>()
+                .eq(UserCourseResult::getUserId, userId)
+                .in(UserCourseResult::getCourseId, courseIds));
+        Map<Long, UserCourseResult> resultMap = courseResults.stream()
+                .collect(Collectors.toMap(UserCourseResult::getCourseId, item -> item, (left, right) -> left));
+        Set<Long> certifiedCourseIds = certificateService.list(new LambdaQueryWrapper<Certificate>()
+                        .eq(Certificate::getUserId, userId)
+                        .eq(Certificate::getStatus, 1)
+                        .in(Certificate::getCourseId, courseIds))
+                .stream()
+                .map(Certificate::getCourseId)
+                .collect(Collectors.toSet());
         Map<Long, Course> courseMap = new HashMap<>();
         for (Course course : courses) {
             courseMap.put(course.getId(), course);
@@ -213,6 +248,13 @@ public class FrontendCourseController {
                     vo.setCreditHours(course.getCreditHours());
                     vo.setCourseStatus(course.getStatus());
                     vo.setLearningStatus(enrollment.getStatus());
+                    boolean hasFinalExam = examCountMap.getOrDefault(course.getId(), 0L) > 0;
+                    UserCourseResult courseResult = resultMap.get(course.getId());
+                    boolean passedFinalExam = courseResult != null && Integer.valueOf(1).equals(courseResult.getIsPassed());
+                    boolean hasCertificate = certifiedCourseIds.contains(course.getId());
+                    vo.setHasFinalExam(hasFinalExam);
+                    vo.setPassedFinalExam(passedFinalExam);
+                    vo.setHasCertificate(hasCertificate);
                     return vo;
                 })
                 .filter(item -> item != null)
@@ -230,5 +272,8 @@ public class FrontendCourseController {
         private java.math.BigDecimal creditHours;
         private Integer courseStatus;
         private Integer learningStatus;
+        private Boolean hasFinalExam;
+        private Boolean passedFinalExam;
+        private Boolean hasCertificate;
     }
 }

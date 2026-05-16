@@ -26,9 +26,12 @@ import com.pxwork.common.entity.User;
 import com.pxwork.common.service.UserService;
 import com.pxwork.common.utils.Result;
 import com.pxwork.course.entity.Course;
+import com.pxwork.course.entity.CourseHour;
+import com.pxwork.course.entity.CourseResource;
 import com.pxwork.course.entity.UserCourseEnrollment;
 import com.pxwork.course.entity.UserCourseResult;
 import com.pxwork.course.service.CourseChapterService;
+import com.pxwork.course.service.CourseHourService;
 import com.pxwork.course.service.CourseResourceService;
 import com.pxwork.course.service.CourseService;
 import com.pxwork.course.service.UserCourseEnrollmentService;
@@ -61,6 +64,9 @@ public class BackendCourseController {
 
     @Autowired
     private CourseChapterService courseChapterService;
+
+    @Autowired
+    private CourseHourService courseHourService;
 
     @Autowired
     private CourseResourceService courseResourceService;
@@ -223,7 +229,20 @@ public class BackendCourseController {
         if (!isSuperAdmin && !currentUserId.equals(course.getTeacherId())) {
             return Result.fail("无权限查看该课程");
         }
-        List<Long> resourceIds = courseResourceService.listResourceIdsByCourse(id);
+        java.util.LinkedHashSet<Long> resourceIds = new java.util.LinkedHashSet<>(courseResourceService.listResourceIdsByCourse(id));
+        List<Long> chapterIds = courseChapterService.list(new LambdaQueryWrapper<com.pxwork.course.entity.CourseChapter>()
+                .eq(com.pxwork.course.entity.CourseChapter::getCourseId, id))
+                .stream()
+                .map(com.pxwork.course.entity.CourseChapter::getId)
+                .collect(Collectors.toList());
+        if (!chapterIds.isEmpty()) {
+            courseHourService.list(new LambdaQueryWrapper<CourseHour>()
+                    .in(CourseHour::getChapterId, chapterIds))
+                    .stream()
+                    .map(CourseHour::getResourceId)
+                    .filter(resourceId -> resourceId != null && resourceId > 0)
+                    .forEach(resourceIds::add);
+        }
         if (resourceIds.isEmpty()) {
             return Result.success(List.of());
         }

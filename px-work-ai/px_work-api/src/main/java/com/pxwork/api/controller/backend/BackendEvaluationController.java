@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.pxwork.common.utils.Result;
 import com.pxwork.course.entity.Course;
@@ -32,6 +33,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
+import org.springframework.util.CollectionUtils;
 
 @Tag(name = "3.2 后台-综合评价与成绩汇总")
 @RestController
@@ -66,10 +68,17 @@ public class BackendEvaluationController {
             return Result.fail("无权限对该课程评分");
         }
 
+        List<EvaluationItem> evaluationItems = request.resolveEvaluationItems();
+        if (CollectionUtils.isEmpty(evaluationItems)) {
+            return Result.fail("评价明细不能为空");
+        }
         BigDecimal totalScore = BigDecimal.ZERO;
-        for (EvaluationItem item : request.getEvaluationItems()) {
+        for (EvaluationItem item : evaluationItems) {
             if (item.getScore() == null) {
                 return Result.fail("评价项分数不能为空");
+            }
+            if (!org.springframework.util.StringUtils.hasText(item.getDimension())) {
+                return Result.fail("评价维度不能为空");
             }
             if (item.getScore().compareTo(BigDecimal.ZERO) < 0) {
                 return Result.fail("评价项分数不能为负数");
@@ -78,7 +87,7 @@ public class BackendEvaluationController {
         }
         String evaluationDetails;
         try {
-            evaluationDetails = objectMapper.writeValueAsString(request.getEvaluationItems());
+            evaluationDetails = objectMapper.writeValueAsString(evaluationItems);
         } catch (JsonProcessingException e) {
             return Result.fail("评价明细序列化失败");
         }
@@ -123,12 +132,18 @@ public class BackendEvaluationController {
         private Long courseId;
         @NotEmpty(message = "评价明细不能为空")
         @Valid
+        @JsonAlias("items")
         private List<EvaluationItem> evaluationItems;
+
+        public List<EvaluationItem> resolveEvaluationItems() {
+            return evaluationItems;
+        }
     }
 
     @Data
     public static class EvaluationItem {
         @NotBlank(message = "评价维度不能为空")
+        @JsonAlias("name")
         private String dimension;
         @NotNull(message = "评价分数不能为空")
         private BigDecimal score;

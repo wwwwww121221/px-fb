@@ -35,6 +35,7 @@ import cn.dev33.satoken.secure.SaSecureUtil;
  */
 @Service
 public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements UserService {
+    private static final String DEFAULT_FRONTEND_USER_PASSWORD = "123456";
 
     @Autowired
     private UserDepartmentService userDepartmentService;
@@ -45,8 +46,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     @Transactional(rollbackFor = Exception.class)
     public boolean createUser(User user) {
-        if (StringUtils.isNotBlank(user.getPassword())) {
-            user.setPassword(SaSecureUtil.sha256(user.getPassword()));
+        String rawPassword = StringUtils.isNotBlank(user.getPassword()) ? user.getPassword() : DEFAULT_FRONTEND_USER_PASSWORD;
+        user.setPassword(SaSecureUtil.sha256(rawPassword));
+        if (user.getIsFirstLogin() == null) {
+            user.setIsFirstLogin(1);
         }
         boolean saved = this.save(user);
         if (!saved) {

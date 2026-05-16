@@ -11,8 +11,7 @@ import {
   updateCourseHour,
   deleteCourseHour,
   getCourseHourList,
-  getCourseHourDetail,
-  getCourseResources 
+  getCourseHourDetail
 } from '../../../../api/course';
 import { getResourceList } from '../../../../api/resource'; 
 import FilePreviewModal from '../../../../components/common/FilePreviewModal';
@@ -24,7 +23,6 @@ export default function CourseBuild() {
 
   const [courseDetail, setCourseDetail] = useState(null);
   const [chapters, setChapters] = useState([]);
-  const [courseResources, setCourseResources] = useState([]); 
   const [loading, setLoading] = useState(false);
 
   const [resourceCache, setResourceCache] = useState({});
@@ -45,7 +43,6 @@ export default function CourseBuild() {
     if (courseId) {
       fetchCourseDetail();
       fetchChapters();
-      fetchCourseResources(); 
       fetchAllResourcesMap(); 
     }
   }, [courseId]);
@@ -69,15 +66,6 @@ export default function CourseBuild() {
       const res = await getCourseDetail(courseId);
       setCourseDetail(res || {});
     } catch (e) { console.error('获取课程详情失败'); }
-  };
-
-  const fetchCourseResources = async () => {
-    try {
-      const res = await getCourseResources(courseId);
-      setCourseResources(res.data || res || []);
-    } catch (error) {
-      console.error('获取课程绑定的素材失败', error);
-    }
   };
 
   const fetchChapters = async () => {
@@ -111,16 +99,12 @@ export default function CourseBuild() {
     if (resourceCache[rId]) return resourceCache[rId];
     if (allResourcesMap[rId]?.name) return allResourcesMap[rId].name;
     if (hourData.resourceName) return hourData.resourceName;
-    const cr = courseResources.find(r => Number(r.id) === rId);
-    if (cr && cr.name) return cr.name;
     return '已绑素材';
   };
 
   const getResourceById = (resourceId) => {
     const rId = Number(resourceId);
     if (!rId) return null;
-    const fromCourse = courseResources.find(r => Number(r.id) === rId);
-    if (fromCourse) return fromCourse;
     const fromAll = allResourcesMap[rId];
     if (fromAll) return fromAll;
     return null;
@@ -244,53 +228,6 @@ export default function CourseBuild() {
         <button onClick={() => handleOpenChapterModal()} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm">
           <span className="material-symbols-outlined text-[18px]">add_box</span> 新增章节
         </button>
-      </div>
-
-      <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 dark:bg-slate-900 dark:border-slate-800">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <span className="material-symbols-outlined text-blue-500 text-[20px]">attach_file</span>
-            课程挂载资料
-          </h3>
-          <span className="text-xs text-slate-500">共 {courseResources?.length || 0} 个</span>
-        </div>
-
-        {courseResources && courseResources.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {courseResources.map((r) => (
-              <div key={r.id} className="bg-slate-50/70 dark:bg-slate-800/30 border border-slate-200 dark:border-slate-800 rounded-xl p-4 flex items-center justify-between gap-4">
-                <div className="min-w-0">
-                  <div className="font-bold text-slate-800 dark:text-slate-200 truncate" title={r.name}>
-                    {r.name}
-                  </div>
-                  <div className="text-xs text-slate-500 mt-0.5 truncate" title={r.url}>
-                    {r.url}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => openPreview(r)}
-                    className="px-3 py-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 rounded-lg transition-colors"
-                  >
-                    预览
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => triggerDownload({ name: r.name, url: r.url })}
-                    className="px-3 py-1.5 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors"
-                  >
-                    下载
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="text-sm text-slate-400 text-center py-8 bg-slate-50 dark:bg-slate-800/30 rounded border border-dashed border-slate-200 dark:border-slate-700">
-            暂无课程挂载资料
-          </div>
-        )}
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 dark:bg-slate-900 dark:border-slate-800 min-h-[500px]">

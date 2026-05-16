@@ -155,8 +155,8 @@ export default function CourseScoreCenter() {
       const payload = {
         userId: scoringModal.student.userId,
         courseId: Number(courseId),
-        items: scoreItems.map(item => ({
-          name: item.name.trim(),
+        evaluationItems: scoreItems.map(item => ({
+          dimension: item.name.trim(),
           score: Number(item.score)
         })),
         totalScore: Math.round(total * 100) / 100
