@@ -124,11 +124,17 @@ export default function Login() {
   return (
     <div className="min-h-screen flex bg-slate-50 font-sans">
       <div className="hidden lg:flex lg:w-1/2 bg-blue-700 items-center justify-center relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600 to-blue-900 opacity-90"></div>
-        <div className="relative z-10 p-12 text-white max-w-lg animate-in fade-in slide-in-from-left-8 duration-700">
-          <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-blue-700 text-3xl font-bold mb-8 shadow-lg">企</div>
-          <h1 className="text-4xl font-bold mb-6 leading-tight">B2B 企培通<br/>数字化培训管理平台</h1>
-          <p className="text-blue-100 text-lg leading-relaxed">支持千万级企业学时数据统计，智能化课件资源管理与 AI 辅助出卷系统，全方位提升企业培训效率。</p>
+        <div className="relative z-10 px-14 py-12 text-white max-w-xl w-full animate-in fade-in slide-in-from-left-8 duration-700 text-center">
+          <div className="inline-block text-left">
+            <div className="flex items-center gap-3 mb-10">
+              <div className="h-11 w-11 rounded-2xl bg-white/10 ring-1 ring-white/20 flex items-center justify-center">
+                <span className="material-symbols-outlined text-[26px] text-white">school</span>
+              </div>
+              <div className="text-sm font-semibold tracking-[0.28em] text-white/80">JULAN</div>
+            </div>
+            <h1 className="text-5xl font-black leading-[1.05]">俊郎学堂</h1>
+            <div className="mt-4 text-2xl font-semibold text-white/85">数字化培训管理平台</div>
+          </div>
         </div>
       </div>
 

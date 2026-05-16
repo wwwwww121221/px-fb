@@ -4,13 +4,17 @@ import {
   createUser, 
   updateUser, 
   deleteUser,
+  importUsers,
+  batchDeleteUsers,
   getDepartmentTree 
 } from '../../../api/user'; // 🌟 引入刚刚写好的学员专属 API
+import { cleanupInvalidDepartments } from '../../../api/department';
 
 export default function Organization() {
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState(() => new Set());
 
   // 搜索与分页
   const [searchName, setSearchName] = useState('');
@@ -22,6 +26,11 @@ export default function Organization() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEdit, setIsEdit] = useState(false); 
   const [submitting, setSubmitting] = useState(false);
+
+  const [importModalOpen, setImportModalOpen] = useState(false);
+  const [importFile, setImportFile] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState(null);
   
   // 🌟 严格对齐 JSON 的学员结构（包含扩展字段和单一部门ID）
   const initialFormData = {
@@ -84,6 +93,52 @@ export default function Organization() {
   };
   const flatDepartments = flattenDepartments(departments);
 
+  const normalizeOrgName = (value) => {
+    const v = (value ?? '').toString().trim();
+    if (!v || v === '/') return '';
+    return v;
+  };
+
+  const buildDeptMaps = (nodes) => {
+    const idMap = new Map();
+    const walk = (arr) => {
+      if (!arr) return;
+      arr.forEach((n) => {
+        if (!n || n.id == null) return;
+        idMap.set(Number(n.id), { id: Number(n.id), parentId: Number(n.parentId || 0), name: n.name || '' });
+        if (n.children && n.children.length > 0) walk(n.children);
+      });
+    };
+    walk(nodes);
+    return { idMap };
+  };
+
+  const { idMap: deptIdMap } = buildDeptMaps(departments);
+
+  const getDeptChain = (deptId) => {
+    const names = [];
+    let cur = deptId ? deptIdMap.get(Number(deptId)) : null;
+    let guard = 0;
+    while (cur && guard < 20) {
+      const name = normalizeOrgName(cur.name);
+      if (name) names.unshift(name);
+      if (!cur.parentId) break;
+      cur = deptIdMap.get(Number(cur.parentId)) || null;
+      guard += 1;
+    }
+    return names;
+  };
+
+  const getUserOrgDisplay = (user) => {
+    const chain = user?.departmentId ? getDeptChain(user.departmentId) : [];
+    const dept1 = chain[0] || '';
+    const dept2 = chain[1] || '';
+    const deptDisplay = [dept1, dept2].filter(Boolean).join('-') || normalizeOrgName(user?.deptName);
+    const officeFromChain = chain.length >= 3 ? chain[2] : '';
+    const officeDisplay = officeFromChain || normalizeOrgName(user?.office);
+    return { deptDisplay, officeDisplay };
+  };
+
   const handleSearch = () => {
     setPagination(prev => ({ ...prev, current: 1 }));
     setQueryName(searchName);
@@ -93,6 +148,12 @@ export default function Organization() {
     setIsEdit(false);
     setFormData(initialFormData);
     setIsModalOpen(true);
+  };
+
+  const handleImportClick = () => {
+    setImportFile(null);
+    setImportResult(null);
+    setImportModalOpen(true);
   };
 
   const handleEditClick = (user) => {
@@ -117,6 +178,11 @@ export default function Organization() {
       try {
         await deleteUser(id);
         alert('删除成功！');
+        setSelectedUserIds(prev => {
+          const next = new Set(prev);
+          next.delete(Number(id));
+          return next;
+        });
         fetchUsers(pagination.current, pagination.size, queryName);
       } catch (error) {
         alert('删除失败，请稍后重试');
@@ -163,6 +229,73 @@ export default function Organization() {
     }
   };
 
+  const handleImportSubmit = async (e) => {
+    e.preventDefault();
+    if (!importFile) {
+      alert('请先选择 Excel 文件');
+      return;
+    }
+    setImporting(true);
+    try {
+      const res = await importUsers(importFile);
+      setImportResult(res);
+      const summary = [
+        `总行数 ${res?.total ?? 0}`,
+        `新增 ${res?.inserted ?? 0}`,
+        `更新 ${res?.updated ?? 0}`,
+        `新建部门 ${res?.departmentsCreated ?? 0}`,
+        `绑定部门 ${res?.departmentLinked ?? 0}`,
+        `新增岗位角色 ${res?.jobRolesCreated ?? 0}`
+      ].join('，');
+      alert(`导入完成：${summary}`);
+      setImportModalOpen(false);
+      fetchUsers(pagination.current, pagination.size, queryName);
+      fetchDepartments();
+    } catch (error) {
+      alert(error?.message || '导入失败，请检查文件格式或网络');
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const toggleSelectUser = (id) => {
+    const uid = Number(id);
+    setSelectedUserIds(prev => {
+      const next = new Set(prev);
+      if (next.has(uid)) next.delete(uid);
+      else next.add(uid);
+      return next;
+    });
+  };
+
+  const toggleSelectAllUsersOnPage = () => {
+    const pageIds = (users || []).map(u => Number(u.id)).filter(Boolean);
+    setSelectedUserIds(prev => {
+      const next = new Set(prev);
+      const allSelected = pageIds.length > 0 && pageIds.every(id => next.has(id));
+      if (allSelected) {
+        pageIds.forEach(id => next.delete(id));
+      } else {
+        pageIds.forEach(id => next.add(id));
+      }
+      return next;
+    });
+  };
+
+  const handleBatchDeleteUsers = async () => {
+    const ids = Array.from(selectedUserIds);
+    if (!ids.length) return;
+    if (!window.confirm(`确定要批量删除已选中的 ${ids.length} 位学员吗？此操作不可恢复。`)) return;
+    try {
+      const res = await batchDeleteUsers(ids);
+      alert(`批量删除完成：已删除 ${res?.deleted ?? 0} / ${res?.requested ?? ids.length}`);
+      setSelectedUserIds(new Set());
+      fetchUsers(pagination.current, pagination.size, queryName);
+    } catch (error) {
+      alert(error?.message || '批量删除失败，请稍后重试');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* 头部与搜索 */}
@@ -183,6 +316,40 @@ export default function Organization() {
             />
           </div>
           <button onClick={handleSearch} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg text-sm font-medium dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 border">查询</button>
+          <button
+            onClick={async () => {
+              if (!window.confirm('确定要刷新全部学员的部门绑定吗？将自动把绑定在“/”等无效节点上的学员，上提绑定到上级部门。')) return;
+              try {
+                const res = await cleanupInvalidDepartments();
+                const summary = [
+                  `无效节点 ${res?.invalid ?? 0} 个`,
+                  `上提子部门 ${res?.childrenMoved ?? 0} 个`,
+                  `上提学员关联 ${res?.userRelationsMoved ?? 0} 条`,
+                  `删除学员关联 ${res?.userRelationsDeleted ?? 0} 条`,
+                  `删除节点 ${res?.deleted ?? 0} 个`
+                ].join('，');
+                alert(`刷新完成：${summary}`);
+                fetchDepartments();
+                fetchUsers(pagination.current, pagination.size, queryName);
+              } catch (error) {
+                alert(error?.message || '刷新失败，请稍后重试');
+              }
+            }}
+            className="bg-amber-600 hover:bg-amber-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm"
+          >
+            <span className="material-symbols-outlined text-sm">sync</span> 刷新部门
+          </button>
+          {selectedUserIds.size > 0 && (
+            <button
+              onClick={handleBatchDeleteUsers}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm"
+            >
+              <span className="material-symbols-outlined text-sm">delete</span> 批量删除 ({selectedUserIds.size})
+            </button>
+          )}
+          <button onClick={handleImportClick} className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm">
+            <span className="material-symbols-outlined text-sm">upload_file</span> 批量导入
+          </button>
           <button onClick={handleAddClick} className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2 shadow-sm">
             <span className="material-symbols-outlined text-sm">add</span> 添加学员
           </button>
@@ -195,6 +362,13 @@ export default function Organization() {
           <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
             <thead className="bg-slate-50 dark:bg-slate-800/50">
               <tr>
+                <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase w-12">
+                  <input
+                    type="checkbox"
+                    checked={(users || []).length > 0 && (users || []).every(u => selectedUserIds.has(Number(u.id)))}
+                    onChange={toggleSelectAllUsersOnPage}
+                  />
+                </th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">学员信息</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">工号</th>
                 <th className="px-6 py-4 text-left text-xs font-semibold text-slate-500 uppercase">所属部门</th>
@@ -204,8 +378,18 @@ export default function Organization() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200 dark:bg-slate-900 dark:divide-slate-800">
-              {loading ? <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-500">正在获取数据...</td></tr> : users.length === 0 ? <tr><td colSpan="6" className="px-6 py-12 text-center text-slate-500">暂无数据</td></tr> : users.map((user) => (
+              {loading ? <tr><td colSpan="7" className="px-6 py-12 text-center text-slate-500">正在获取数据...</td></tr> : users.length === 0 ? <tr><td colSpan="7" className="px-6 py-12 text-center text-slate-500">暂无数据</td></tr> : users.map((user) => (
+                  (() => {
+                    const { deptDisplay, officeDisplay } = getUserOrgDisplay(user);
+                    return (
                   <tr key={user.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedUserIds.has(Number(user.id))}
+                        onChange={() => toggleSelectUser(user.id)}
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <img className="h-10 w-10 rounded-full object-cover bg-slate-100 border border-slate-200 dark:border-slate-700" src={user.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user.account}`} alt="" />
@@ -221,9 +405,9 @@ export default function Organization() {
                     </td>
                     
                     <td className="px-6 py-4">
-                      {user.department?.name || user.deptName ? (
+                      {deptDisplay ? (
                         <span className="bg-slate-100 dark:bg-slate-800 px-2.5 py-1 rounded text-xs font-medium text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
-                          {user.department?.name || user.deptName}
+                          {deptDisplay}
                         </span>
                       ) : (
                         <span className="text-slate-400 text-sm">未填写部门</span>
@@ -231,7 +415,7 @@ export default function Organization() {
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="text-sm text-slate-700 dark:text-slate-300">{user.office || '-'}</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">{officeDisplay || '-'}</span>
                     </td>
 
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -244,6 +428,8 @@ export default function Organization() {
                       <button onClick={() => handleDeleteClick(user.id, user.name)} className="text-slate-500 hover:text-red-600 transition-colors">删除</button>
                     </td>
                   </tr>
+                    );
+                  })()
                 ))
               }
             </tbody>
@@ -330,6 +516,68 @@ export default function Organization() {
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">取消</button>
                 <button type="submit" disabled={submitting} className="px-6 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm disabled:opacity-50">
                   {submitting ? '保存中...' : '确认保存'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {importModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-sm px-4">
+          <div className="bg-white dark:bg-slate-900 w-full max-w-xl rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50 dark:bg-slate-800/50 shrink-0">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span className="material-symbols-outlined text-emerald-600">upload_file</span>
+                批量导入学员
+              </h3>
+              <button disabled={importing} onClick={() => setImportModalOpen(false)} className="text-slate-400 hover:text-slate-600 disabled:opacity-50"><span className="material-symbols-outlined">close</span></button>
+            </div>
+
+            <form onSubmit={handleImportSubmit} className="flex flex-col overflow-hidden">
+              <div className="p-6 space-y-4 overflow-y-auto">
+                <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 px-4 py-3 rounded-xl text-sm">
+                  <div className="font-bold mb-1">支持列名</div>
+                  <div className="leading-relaxed">
+                    姓名、工号、部门、部门2、科室、职位（或 岗位角色）。未提供登录账号时会自动用工号作为登录账号；部门会按“部门→部门2→科室”自动建树并绑定。
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-slate-700 dark:text-slate-300">选择 Excel 文件</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept=".xlsx,.xls"
+                      onChange={(e) => {
+                        const file = e.target.files && e.target.files.length > 0 ? e.target.files[0] : null;
+                        setImportFile(file);
+                        setImportResult(null);
+                      }}
+                      className="block w-full text-sm text-slate-600 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-medium file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200 dark:text-slate-300 dark:file:bg-slate-800 dark:file:text-slate-200"
+                    />
+                  </div>
+                  {importFile && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400">
+                      已选择：{importFile.name}
+                    </div>
+                  )}
+                </div>
+
+                {importResult && (
+                  <div className="bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl p-4 text-sm text-slate-700 dark:text-slate-300">
+                    <div>总行数：{importResult.total}</div>
+                    <div>新增：{importResult.inserted}，更新：{importResult.updated}</div>
+                    <div>新建部门：{importResult.departmentsCreated}，绑定部门：{importResult.departmentLinked}</div>
+                    <div>新增岗位角色：{importResult.jobRolesCreated}</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 flex justify-end gap-3 shrink-0 bg-slate-50 dark:bg-slate-800/50">
+                <button type="button" disabled={importing} onClick={() => setImportModalOpen(false)} className="px-5 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 hover:bg-slate-50 rounded-lg shadow-sm dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300 disabled:opacity-50">取消</button>
+                <button type="submit" disabled={importing || !importFile} className="px-6 py-2 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg shadow-sm disabled:opacity-50">
+                  {importing ? '导入中...' : '开始导入'}
                 </button>
               </div>
             </form>

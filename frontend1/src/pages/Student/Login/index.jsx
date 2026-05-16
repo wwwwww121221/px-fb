@@ -125,7 +125,7 @@ export default function StudentLogin() {
           </div>
         </div>
         <h2 className="text-center text-3xl font-extrabold text-white">
-          企培通 学员学习中心
+          俊郎学堂 学员学习中心
         </h2>
         <p className="mt-2 text-center text-sm text-blue-100">
           请输入您的登录账号与密码登录系统

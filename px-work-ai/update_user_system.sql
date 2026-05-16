@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS `admin_role_menu` (
 -- 4) 初始化默认权限菜单（为空时才插入）
 INSERT INTO `admin_menus` (`id`, `parent_id`, `name`, `path`, `component`, `perms`, `type`, `sort`)
 SELECT * FROM (
-  SELECT 1000, 0, '系统管理', NULL, NULL, NULL, 1, 10
+  SELECT 1000 AS id, 0 AS parent_id, '系统管理' AS name, NULL AS path, NULL AS component, NULL AS perms, 1 AS type, 10 AS sort
   UNION ALL SELECT 1001, 1000, '查看权限树', NULL, NULL, 'system:menu:list', 3, 11
   UNION ALL SELECT 1002, 1000, '角色列表', NULL, NULL, 'system:role:list', 3, 12
   UNION ALL SELECT 1003, 1000, '新增角色', NULL, NULL, 'system:role:add', 3, 13

@@ -59,7 +59,7 @@ export default function AdminLayout() {
             <span className="material-symbols-outlined text-2xl">school</span>
           </div>
           <div>
-            <h1 className="text-lg font-bold leading-none tracking-tight">企培通</h1>
+            <h1 className="text-lg font-bold leading-none tracking-tight">俊郎学堂</h1>
             <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">企业管理端</p>
           </div>
         </div>

@@ -32,3 +32,15 @@ export const updateDepartment = (data) => {
 export const deleteDepartment = (id) => {
   return request.delete(`/department/delete/${id}`);
 };
+
+export const cleanupInvalidDepartments = () => {
+  return request.post('/department/cleanup-invalid');
+};
+
+export const reindexDepartmentSort = () => {
+  return request.post('/department/reindex-sort');
+};
+
+export const batchDeleteDepartments = (ids) => {
+  return request.post('/department/batch-delete', ids);
+};

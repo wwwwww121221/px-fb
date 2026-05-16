@@ -144,7 +144,7 @@ export default function StudentDashboard() {
             </h2>
             <div className="flex items-center gap-3 mt-2">
               <span className="text-xs font-medium bg-blue-50 text-blue-600 px-2.5 py-1 rounded-md border border-blue-100">
-                {userInfo?.deptName || '企培通学员'}
+                {userInfo?.deptName || '俊郎学堂学员'}
               </span>
               {userInfo?.jobRole && (
                 <span className="text-xs text-slate-500 flex items-center gap-1">

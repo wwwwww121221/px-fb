@@ -60,8 +60,8 @@ export default function StudentLayout() {
             
             <div className="flex items-center gap-8">
               <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate('/student/dashboard')}>
-                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">企</div>
-                <span className="text-xl font-bold text-blue-700 tracking-wide">企培通学习中心</span>
+                <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-sm">俊</div>
+                <span className="text-xl font-bold text-blue-700 tracking-wide">俊郎学堂学习中心</span>
               </div>
 
               <nav className="hidden md:flex space-x-6 h-full">

@@ -24,6 +24,16 @@ export const deleteUser = (id) => {
   return request.delete(`/backend/user/delete/${id}`);
 };
 
+export const importUsers = (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  return request.post('/backend/user/import', formData);
+};
+
+export const batchDeleteUsers = (ids) => {
+  return request.post('/backend/user/batch-delete', ids);
+};
+
 // ==========================================
 // 2. 后台 - 部门组织管理 API (保留原来的部门树接口)
 // ==========================================
