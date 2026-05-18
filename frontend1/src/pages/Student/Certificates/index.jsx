@@ -127,6 +127,11 @@ export default function Certificates() {
     return name[0] + '**' + name[len - 1];
   };
 
+  const formatCertNo = (certNo) => {
+    if (!certNo) return '-';
+    return String(certNo).replace(/^[A-Za-z]+/, 'julan');
+  };
+
   // ========== 提交纸质证书申请 ==========
   const handleApplySubmit = async (values) => {
     if (!selectedCert?.id) {
@@ -264,7 +269,7 @@ export default function Certificates() {
                 <div className="space-y-1.5 text-sm text-slate-500 mt-4 bg-slate-50 p-3 rounded-lg border border-slate-100">
                   <div className="flex justify-between">
                     <span className="text-slate-400">证书编号</span>
-                    <span className="font-mono text-slate-700 text-xs">{cert.certNo || '-'}</span>
+                    <span className="font-mono text-slate-700 text-xs">{formatCertNo(cert.certNo)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-slate-400">颁发日期</span>
@@ -300,8 +305,8 @@ export default function Certificates() {
             </div>
           ))}
         </div>
-        
-      ) : (
+
+      ) : activeTab === 'public' ? (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
           {publicCertList.length === 0 ? (
             <div className="py-16 text-center text-slate-400">
@@ -325,7 +330,7 @@ export default function Certificates() {
                   {publicCertList.map((cert) => (
                     <tr key={cert.id} className="hover:bg-slate-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-medium">{cert.issueDate}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-blue-600">{cert.certNo}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-blue-600">{formatCertNo(cert.certNo)}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-700 font-medium">{cert.courseName}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
@@ -351,7 +356,7 @@ export default function Certificates() {
             </div>
           )}
         </div>
-      )}
+      ) : null}
 
       {/* ============================== */}
       {/* 申请记录 Tab */}
@@ -384,7 +389,7 @@ export default function Certificates() {
                           </span>
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-1.5 text-xs text-slate-500 mt-2">
-                          <div><span className="text-slate-400">证书编号：</span><span className="font-mono text-slate-700">{req.certNo || '-'}</span></div>
+                          <div><span className="text-slate-400">证书编号：</span><span className="font-mono text-slate-700">{formatCertNo(req.certNo)}</span></div>
                           <div><span className="text-slate-400">收件人：</span><span className="text-slate-700">{req.receiverName}</span></div>
                           <div><span className="text-slate-400">联系电话：</span><span className="text-slate-700">{req.phone}</span></div>
                           <div><span className="text-slate-400">申请时间：</span><span>{req.createTime}</span></div>
@@ -502,10 +507,6 @@ export default function Certificates() {
       {previewCert && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm px-4 py-8" onClick={(e) => e.target === e.currentTarget && setPreviewCert(null)}>
           <div className="relative w-full max-w-[720px] animate-in zoom-in-95 duration-300">
-            <button onClick={() => setPreviewCert(null)} className="absolute -top-3 -right-3 z-10 w-9 h-9 bg-white rounded-full shadow-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-50 transition-colors border border-slate-200">
-              <span className="material-symbols-outlined text-[20px]">close</span>
-            </button>
-
             <div className="relative bg-gradient-to-br from-amber-50 via-white to-orange-50 rounded-lg shadow-2xl overflow-hidden" style={{ aspectRatio: '1.4 / 1' }} ref={certRef}>
               <div className="absolute inset-3 md:inset-5 border-2 border-amber-600/30 rounded-md"></div>
               <div className="absolute inset-[14px] md:inset-[18px] border border-amber-400/20 rounded-sm"></div>
@@ -555,13 +556,13 @@ export default function Certificates() {
                 <div className="w-full flex-shrink-0 flex items-end justify-between gap-4 md:gap-8 pt-3 md:pt-4 border-t border-dashed border-amber-300/30">
                   <div className="text-left min-w-[120px] md:min-w-[160px]">
                     <p className="text-[10px] text-slate-400 mb-1">证书编号</p>
-                    <p className="text-xs md:text-sm font-mono font-bold text-slate-700 tracking-wider">{previewCert.certNo || '—'}</p>
+                    <p className="text-xs md:text-sm font-mono font-bold text-slate-700 tracking-wider">{formatCertNo(previewCert.certNo)}</p>
                   </div>
                   <div className="flex flex-col items-center">
                     <div className="w-12 h-12 md:w-14 md:h-14 rounded-full border-2 border-amber-500/40 flex items-center justify-center bg-amber-50/50">
                       <span className="material-symbols-outlined text-amber-600 text-xl md:text-2xl">verified</span>
                     </div>
-                    <p className="text-[10px] text-slate-400 mt-1 font-medium">官方认证</p>
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">俊郎培训管理委员</p>
                   </div>
                   <div className="text-right min-w-[120px] md:min-w-[160px]">
                     <p className="text-[10px] text-slate-400 mb-1">颁发日期</p>

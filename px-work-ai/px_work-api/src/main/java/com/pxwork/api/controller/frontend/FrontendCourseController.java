@@ -255,11 +255,68 @@ public class FrontendCourseController {
                     vo.setHasFinalExam(hasFinalExam);
                     vo.setPassedFinalExam(passedFinalExam);
                     vo.setHasCertificate(hasCertificate);
+                    if (courseResult != null) {
+                        vo.setExamsAvgScore(courseResult.getExamsAvgScore());
+                        vo.setProcessScore(courseResult.getProcessScore());
+                        vo.setPracticalScore(courseResult.getPracticalScore());
+                        vo.setTotalScore(courseResult.getTotalScore());
+                    }
                     return vo;
                 })
                 .filter(item -> item != null)
                 .collect(Collectors.toList());
         return Result.success(result);
+    }
+
+    @Operation(summary = "获取课程成绩详情")
+    @GetMapping("/{courseId}/result")
+    public Result<Map<String, Object>> getCourseResult(@PathVariable Long courseId) {
+        long userId = StpUserUtil.getLoginIdAsLong();
+        
+        UserCourseEnrollment enrollment = userCourseEnrollmentService.getOne(
+                new LambdaQueryWrapper<UserCourseEnrollment>()
+                        .eq(UserCourseEnrollment::getUserId, userId)
+                        .eq(UserCourseEnrollment::getCourseId, courseId));
+        if (enrollment == null) {
+            return Result.fail("您未选修该课程");
+        }
+        
+        Course course = courseService.getById(courseId);
+        if (course == null) {
+            return Result.fail("课程不存在");
+        }
+        
+        UserCourseResult result = userCourseResultService.getOne(
+                new LambdaQueryWrapper<UserCourseResult>()
+                        .eq(UserCourseResult::getUserId, userId)
+                        .eq(UserCourseResult::getCourseId, courseId));
+        
+        Map<String, Object> data = new HashMap<>();
+        data.put("courseId", courseId);
+        data.put("courseName", course.getName());
+        data.put("learningStatus", enrollment.getStatus());
+        
+        if (result != null) {
+            data.put("examsAvgScore", result.getExamsAvgScore());
+            data.put("processScore", result.getProcessScore());
+            data.put("practicalScore", result.getPracticalScore());
+            data.put("totalScore", result.getTotalScore());
+            data.put("isPassed", Integer.valueOf(1).equals(result.getIsPassed()));
+            data.put("updatedAt", result.getUpdatedAt());
+        } else {
+            data.put("examsAvgScore", null);
+            data.put("processScore", null);
+            data.put("practicalScore", null);
+            data.put("totalScore", null);
+            data.put("isPassed", false);
+            data.put("updatedAt", null);
+        }
+        
+        data.put("weightExams", course.getWeightExams());
+        data.put("weightProcess", course.getWeightProcess());
+        data.put("weightPractical", course.getWeightPractical());
+        
+        return Result.success(data);
     }
 
     @Data
@@ -275,5 +332,9 @@ public class FrontendCourseController {
         private Boolean hasFinalExam;
         private Boolean passedFinalExam;
         private Boolean hasCertificate;
+        private java.math.BigDecimal examsAvgScore;
+        private java.math.BigDecimal processScore;
+        private java.math.BigDecimal practicalScore;
+        private java.math.BigDecimal totalScore;
     }
 }

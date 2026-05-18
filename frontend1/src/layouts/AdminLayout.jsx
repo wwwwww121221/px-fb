@@ -43,11 +43,11 @@ export default function AdminLayout() {
   const navItems = [
     { path: '/admin/dashboard', icon: 'dashboard', label: '控制台' },
     { path: '/admin/courses', icon: 'book_4', label: '课程列表' },
+    { path: '/admin/resources', icon: 'folder_special', label: '素材中心' },
+    { path: '/admin/certificates', icon: 'workspace_premium', label: '证书管理' },
     { path: '/admin/organization', icon: 'group', label: '学员管理' },
     { path: '/admin/department', icon: 'account_tree', label: '组织架构' },
-    { path: '/admin/resources', icon: 'folder_special', label: '素材中心' },
     { path: '/admin/system', icon: 'admin_panel_settings', label: '角色管理' },
-    { path: '/admin/certificates', icon: 'workspace_premium', label: '证书系统' },
   ];
 
   return (
@@ -60,7 +60,7 @@ export default function AdminLayout() {
           </div>
           <div>
             <h1 className="text-lg font-bold leading-none tracking-tight">俊郎学堂</h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">企业管理端</p>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400 font-medium">企业管理端</p>
           </div>
         </div>
 

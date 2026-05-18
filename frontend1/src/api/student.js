@@ -59,6 +59,11 @@ export const enrollCourse = (courseId) => {
   return request.post(`/frontend/course/enroll/${courseId}`);
 };
 
+// 🌟 获取课程成绩详情
+export const getCourseResult = (courseId) => {
+  return request.get(`/frontend/course/${courseId}/result`);
+};
+
 // 🌟 获取当前课程完成度
 export const checkCourseCompletion = (courseId) => {
   return request.get(`/frontend/progress/check-completion/${courseId}`);

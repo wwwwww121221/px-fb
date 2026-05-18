@@ -206,6 +206,34 @@ export default function SystemManagement() {
     } catch (e) { alert('权限分配失败'); } finally { setSavingData(false); }
   };
 
+  const getAllChildIds = (node) => {
+    let ids = [node.id];
+    if (node.children && node.children.length > 0) {
+      node.children.forEach(child => {
+        ids = ids.concat(getAllChildIds(child));
+      });
+    }
+    return ids;
+  };
+
+  const handleMenuCheck = (node, isChecked) => {
+    const allChildIds = getAllChildIds(node);
+    
+    if (isChecked) {
+      setSelectedMenuIds(prev => {
+        const newIds = [...prev];
+        allChildIds.forEach(id => {
+          if (!newIds.includes(id)) {
+            newIds.push(id);
+          }
+        });
+        return newIds;
+      });
+    } else {
+      setSelectedMenuIds(prev => prev.filter(id => !allChildIds.includes(id)));
+    }
+  };
+
   const renderTree = (nodes, level = 0) => {
     if (!nodes || nodes.length === 0) return null;
     return nodes.map(node => (
@@ -214,7 +242,7 @@ export default function SystemManagement() {
           <input 
             type="checkbox" 
             checked={selectedMenuIds.includes(node.id)} 
-            onChange={() => setSelectedMenuIds(p => p.includes(node.id) ? p.filter(id => id !== node.id) : [...p, node.id])} 
+            onChange={(e) => handleMenuCheck(node, e.target.checked)}
             className="rounded border-slate-300 text-blue-600 focus:ring-blue-500/30 cursor-pointer h-4 w-4" 
           />
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300 group-hover:text-blue-600 transition-colors">{node.name}</span>

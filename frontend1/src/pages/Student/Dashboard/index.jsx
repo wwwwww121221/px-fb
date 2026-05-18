@@ -12,7 +12,11 @@ export default function StudentDashboard() {
   const navigate = useNavigate();
 
   const isCourseCompleted = (course) => {
-    return Boolean(course?.hasFinalExam && course?.passedFinalExam && course?.hasCertificate);
+    return Boolean(
+      (course?.learningStatus === 1) || 
+      (course?.totalScore !== null && course?.totalScore !== undefined && course.totalScore >= 60) ||
+      (course?.hasFinalExam && course?.passedFinalExam)
+    );
   };
   
   // 状态栏管理：'explore' 选课大厅 | 'my' 我的课程 | 'learning' 学习中 | 'completed' 已学完
@@ -72,7 +76,11 @@ export default function StudentDashboard() {
             totalLessons: c.creditHours || 0,
             hasFinalExam: Boolean(c.hasFinalExam),
             passedFinalExam: Boolean(c.passedFinalExam),
-            hasCertificate: Boolean(c.hasCertificate)
+            hasCertificate: Boolean(c.hasCertificate),
+            examsAvgScore: c.examsAvgScore,
+            processScore: c.processScore,
+            practicalScore: c.practicalScore,
+            totalScore: c.totalScore
           };
         })).then((courses) => courses.map((course) => ({
           ...course,
@@ -242,6 +250,30 @@ export default function StudentDashboard() {
                     <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden mb-3">
                       <div className={`h-full rounded-full transition-all duration-1000 ease-out ${course.progress === 100 ? 'bg-emerald-500' : 'bg-blue-600'}`} style={{ width: `${course.progress}%` }}></div>
                     </div>
+                    {course.totalScore !== null && course.totalScore !== undefined && (
+                      <div className="mt-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-medium text-slate-600">综合成绩</span>
+                          <span className={`text-sm font-bold ${course.totalScore >= 60 ? 'text-emerald-600' : 'text-red-500'}`}>
+                            {course.totalScore ? course.totalScore.toFixed(1) : '0.0'}分
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1 text-xs text-slate-500">
+                          <div className="text-center">
+                            <div className="font-medium text-slate-700">{course.examsAvgScore ? course.examsAvgScore.toFixed(1) : '-'}</div>
+                            <div>考试</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-medium text-slate-700">{course.processScore ? course.processScore.toFixed(1) : '-'}</div>
+                            <div>过程</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-medium text-slate-700">{course.practicalScore ? course.practicalScore.toFixed(1) : '-'}</div>
+                            <div>实操</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 

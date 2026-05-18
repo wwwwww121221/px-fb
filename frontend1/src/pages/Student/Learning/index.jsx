@@ -4,6 +4,7 @@ import { Document, Page, pdfjs } from 'react-pdf';
 import {
   checkCourseCompletion,
   getAttendanceSessions,
+  getCourseResult,
   getProgressRecord,
   getStudentCourseDetail,
   getStudentHourDetail,
@@ -45,6 +46,7 @@ export default function StudentLearning() {
   const [loading, setLoading] = useState(true);
   
   const [courseData, setCourseData] = useState(null);
+  const [courseResult, setCourseResult] = useState(null);
   const [activeLesson, setActiveLesson] = useState(null);
   const [resourceUrl, setResourceUrl] = useState('');
   const [previewModal, setPreviewModal] = useState({ isOpen: false, file: null });
@@ -238,11 +240,17 @@ export default function StudentLearning() {
     const fetchDetailAndProgress = async () => {
       setLoading(true);
       try {
-        const [detailRes, progressRes, attendanceRes] = await Promise.all([
+        const [detailRes, progressRes, attendanceRes, resultRes] = await Promise.all([
           getStudentCourseDetail(id).catch(() => null),
           checkCourseCompletion(id).catch(() => null),
-          getAttendanceSessions(id).catch(() => null)
+          getAttendanceSessions(id).catch(() => null),
+          getCourseResult(id).catch(() => null)
         ]);
+
+        if (resultRes) {
+          const resultData = resultRes?.data || resultRes;
+          setCourseResult(resultData);
+        }
 
         if (!detailRes) {
           setCourseData(null);
@@ -850,6 +858,69 @@ export default function StudentLearning() {
           <div className="flex-1 p-6 overflow-y-auto">
             {activeTab === 'intro' && (
               <div className="animate-in fade-in duration-300">
+                {courseResult && courseResult.totalScore !== null && courseResult.totalScore !== undefined && (
+                  <div className="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-5 border border-blue-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                        <span className="material-symbols-outlined text-blue-600">school</span>
+                        课程成绩
+                      </h3>
+                      <div className="flex items-center gap-2">
+                        {courseResult.isPassed ? (
+                          <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">check_circle</span>
+                            已通过
+                          </span>
+                        ) : (
+                          <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-bold flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[14px]">cancel</span>
+                            未通过
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-4">
+                      <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                        <div className={`text-2xl font-black ${courseResult.examsAvgScore >= 60 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {courseResult.examsAvgScore ? courseResult.examsAvgScore.toFixed(1) : '0.0'}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">考试平均分</div>
+                        {courseResult.weightExams && (
+                          <div className="text-xs text-slate-400 mt-0.5">权重 {(courseResult.weightExams * 100).toFixed(0)}%</div>
+                        )}
+                      </div>
+                      <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                        <div className={`text-2xl font-black ${courseResult.processScore >= 60 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {courseResult.processScore ? courseResult.processScore.toFixed(1) : '0.0'}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">过程评价</div>
+                        {courseResult.weightProcess && (
+                          <div className="text-xs text-slate-400 mt-0.5">权重 {(courseResult.weightProcess * 100).toFixed(0)}%</div>
+                        )}
+                      </div>
+                      <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                        <div className={`text-2xl font-black ${courseResult.practicalScore >= 60 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {courseResult.practicalScore ? courseResult.practicalScore.toFixed(1) : '0.0'}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-1">实操评价</div>
+                        {courseResult.weightPractical && (
+                          <div className="text-xs text-slate-400 mt-0.5">权重 {(courseResult.weightPractical * 100).toFixed(0)}%</div>
+                        )}
+                      </div>
+                      <div className="text-center p-3 bg-white rounded-lg shadow-sm border-2 border-blue-200">
+                        <div className={`text-3xl font-black ${courseResult.totalScore >= 60 ? 'text-emerald-600' : 'text-red-500'}`}>
+                          {courseResult.totalScore ? courseResult.totalScore.toFixed(1) : '0.0'}
+                        </div>
+                        <div className="text-xs text-slate-600 mt-1 font-bold">综合成绩</div>
+                      </div>
+                    </div>
+                    {courseResult.updatedAt && (
+                      <div className="text-xs text-slate-400 mt-3 text-right">
+                        更新时间：{formatTime(courseResult.updatedAt)}
+                      </div>
+                    )}
+                  </div>
+                )}
                 <h3 className="font-bold text-slate-800 mb-4 text-lg">关于本课</h3>
                 <div 
                   className="text-slate-600 leading-relaxed text-sm prose max-w-none"
