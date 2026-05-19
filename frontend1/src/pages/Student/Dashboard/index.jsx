@@ -57,7 +57,7 @@ export default function StudentDashboard() {
             console.log(`📊 课程 "${c.name}" 进度数据:`, pData);
             if (pData && typeof pData === 'object') {
               if (pData.totalHours && pData.finishedHours !== undefined) {
-                progress = Math.round((pData.finishedHours / pData.totalHours) * 100);
+                progress = Math.min(100, Math.round((pData.finishedHours / pData.totalHours) * 100));
                 console.log(`📊 课程 "${c.name}" 计算进度:`, progress);
               }
             }

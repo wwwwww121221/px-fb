@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
+import QrScanner from 'qr-scanner';
 import {
   checkCourseCompletion,
   getAttendanceSessions,
@@ -37,6 +38,13 @@ const formatTime = (value) => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
+const getScannerUnavailableReason = () => {
+  if (typeof window === 'undefined') return '当前环境不支持扫码';
+  if (!window.isSecureContext) return '当前页面不是安全环境，浏览器不会开放摄像头。请使用 HTTPS 或 localhost 访问。';
+  if (!navigator.mediaDevices?.getUserMedia) return '当前浏览器不支持摄像头调用，请更换为最新版 Chrome/Edge。';
+  return '';
+};
+
 export default function StudentLearning() {
   const navigate = useNavigate();
   const { id } = useParams(); 
@@ -58,9 +66,9 @@ export default function StudentLearning() {
   const [docLoadError, setDocLoadError] = useState('');
   const [signModal, setSignModal] = useState({ open: false, session: null, action: 'signIn', verifyCode: '' });
   const [signSubmitting, setSignSubmitting] = useState(false);
+  const [scanStatus, setScanStatus] = useState('');
   const scanVideoRef = useRef(null);
-  const scanStreamRef = useRef(null);
-  const scanTimerRef = useRef(null);
+  const qrScannerRef = useRef(null);
   const docReportedProgressRef = useRef('');
   const docViewerRef = useRef(null);
   const docPageRefs = useRef({});
@@ -114,7 +122,7 @@ export default function StudentLearning() {
     const res = await checkCourseCompletion(courseId).catch(() => null);
     const progressData = res?.data ?? res;
     if (progressData && typeof progressData === 'object' && progressData.totalHours) {
-      const progressVal = Math.round((progressData.finishedHours / progressData.totalHours) * 100);
+      const progressVal = Math.min(100, Math.round((progressData.finishedHours / progressData.totalHours) * 100));
       setCourseData((prev) => (prev ? { ...prev, progress: progressVal } : prev));
     }
     return progressData;
@@ -282,7 +290,7 @@ export default function StudentLearning() {
         } else if (pData && typeof pData === 'object') {
            // 后端返回 { totalHours, finishedHours } 格式，计算百分比
            if (pData.totalHours && pData.finishedHours !== undefined) {
-             progressVal = Math.round((pData.finishedHours / pData.totalHours) * 100);
+             progressVal = Math.min(100, Math.round((pData.finishedHours / pData.totalHours) * 100));
            } else {
              progressVal = pData.progress ?? pData.completionRate ?? pData.percent ?? 0;
            }
@@ -396,37 +404,47 @@ export default function StudentLearning() {
   }, [id]);
 
   useEffect(() => {
-    const canScan = signModal.open && signModal.session?.signMethod === 1 && window.BarcodeDetector && navigator.mediaDevices?.getUserMedia;
+    const canOpenModalScanner = signModal.open && signModal.session?.signMethod === 1;
+    if (!canOpenModalScanner) return undefined;
+
+    const unavailableReason = getScannerUnavailableReason();
+    if (unavailableReason) {
+      setScanStatus(unavailableReason);
+      return undefined;
+    }
+
+    const canScan = navigator.mediaDevices?.getUserMedia && scanVideoRef.current;
     if (!canScan) return undefined;
 
     let disposed = false;
     const startScan = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-        if (disposed) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        scanStreamRef.current = stream;
-        if (scanVideoRef.current) {
-          scanVideoRef.current.srcObject = stream;
-          await scanVideoRef.current.play().catch(() => {});
-        }
-        const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
-        scanTimerRef.current = window.setInterval(async () => {
-          if (!scanVideoRef.current) return;
-          try {
-            const codes = await detector.detect(scanVideoRef.current);
-            if (codes?.length && codes[0]?.rawValue) {
-              setSignModal((prev) => ({ ...prev, verifyCode: codes[0].rawValue }));
-              stopScanner();
-            }
-          } catch (error) {
-            console.warn('二维码识别失败', error);
+        setScanStatus('正在打开摄像头，请允许浏览器访问...');
+        const scanner = new QrScanner(
+          scanVideoRef.current,
+          (result) => {
+            const rawValue = typeof result === 'string' ? result : result?.data;
+            if (!rawValue) return;
+            setSignModal((prev) => ({ ...prev, verifyCode: rawValue }));
+            setScanStatus('已识别课程码');
+            stopScanner();
+          },
+          {
+            preferredCamera: 'environment',
+            maxScansPerSecond: 5,
+            returnDetailedScanResult: true,
+            onDecodeError: () => {},
           }
-        }, 900);
+        );
+        qrScannerRef.current = scanner;
+        await scanner.start();
+        setScanStatus('请将教师端课程码对准摄像头');
+        if (disposed) {
+          stopScanner();
+        }
       } catch (error) {
         console.warn('打开摄像头失败，改用手动输入', error);
+        setScanStatus(error?.name === 'NotAllowedError' ? '你已拒绝摄像头权限，请在浏览器地址栏中允许摄像头访问后重试。' : '打开摄像头失败，请检查浏览器权限或手动输入课程码。');
       }
     };
 
@@ -489,18 +507,16 @@ export default function StudentLearning() {
   };
 
   const stopScanner = () => {
-    if (scanTimerRef.current) {
-      clearInterval(scanTimerRef.current);
-      scanTimerRef.current = null;
-    }
-    if (scanStreamRef.current) {
-      scanStreamRef.current.getTracks().forEach((track) => track.stop());
-      scanStreamRef.current = null;
+    if (qrScannerRef.current) {
+      qrScannerRef.current.stop();
+      qrScannerRef.current.destroy();
+      qrScannerRef.current = null;
     }
   };
 
   const closeSignModal = () => {
     stopScanner();
+    setScanStatus('');
     setSignModal({ open: false, session: null, action: 'signIn', verifyCode: '' });
   };
 
@@ -1201,9 +1217,14 @@ export default function StudentLearning() {
                   <div className="text-sm text-slate-600">
                     请扫描教师端展示的课程码；如果当前设备不支持扫码，也可以手动输入课程码完成签到。
                   </div>
-                  {window.BarcodeDetector && navigator.mediaDevices?.getUserMedia ? (
+                  {window.isSecureContext && navigator.mediaDevices?.getUserMedia ? (
                     <div className="rounded-xl overflow-hidden border border-slate-200 bg-slate-950">
                       <video ref={scanVideoRef} muted playsInline className="w-full h-64 object-cover" />
+                    </div>
+                  ) : null}
+                  {scanStatus ? (
+                    <div className={`rounded-xl px-4 py-3 text-sm border ${scanStatus.includes('已识别') || scanStatus.includes('对准') ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
+                      {scanStatus}
                     </div>
                   ) : null}
                   <div>

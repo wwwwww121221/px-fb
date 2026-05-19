@@ -2,7 +2,7 @@ import axios from 'axios';
 
 const request = axios.create({
   baseURL: '/api', // 你的真实后端地址
-  timeout: 10000,
+  timeout: 120000, // 增加到 120s，防止 AI 出卷、上传等耗时操作超时
   headers: {
     'Content-Type': 'application/json'
   }

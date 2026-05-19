@@ -76,6 +76,10 @@ export default function OfflineSignManagement() {
   const [form, setForm] = useState(initialForm);
 
   const flatDepartments = useMemo(() => flattenDepartments(departmentTree), [departmentTree]);
+  const selectedSession = useMemo(
+    () => sessions.find((item) => item.id === selectedSessionId) || null,
+    [sessions, selectedSessionId]
+  );
 
   useEffect(() => {
     if (!courseId) return;
@@ -91,7 +95,7 @@ export default function OfflineSignManagement() {
     fetchRecords(selectedSessionId);
   }, [selectedSessionId]);
 
-  const fetchBaseData = async () => {
+  const fetchBaseData = async (preferredSessionId = null) => {
     setLoading(true);
     try {
       const [courseRes, sessionRes, deptRes] = await Promise.all([
@@ -104,7 +108,11 @@ export default function OfflineSignManagement() {
       setSessions(sessionList);
       setDepartmentTree(deptRes || []);
       if (sessionList.length > 0) {
-        setSelectedSessionId((prev) => prev || sessionList[0].id);
+        const preferredExists = preferredSessionId && sessionList.some((item) => item.id === preferredSessionId);
+        setSelectedSessionId((prev) => {
+          if (preferredExists) return preferredSessionId;
+          return prev || sessionList[0].id;
+        });
       }
     } catch (error) {
       alert(error?.message || '获取线下签到数据失败');
@@ -203,8 +211,11 @@ export default function OfflineSignManagement() {
         await updateOfflineSignSession(courseId, payload);
         alert('签到场次更新成功');
       } else {
-        await createOfflineSignSession(courseId, payload);
+        const created = await createOfflineSignSession(courseId, payload);
         alert('签到场次创建成功');
+        setModalOpen(false);
+        await fetchBaseData(created?.id || null);
+        return;
       }
       setModalOpen(false);
       await fetchBaseData();
@@ -266,15 +277,15 @@ export default function OfflineSignManagement() {
                   ? `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(session.qrCode)}`
                   : null;
                 return (
-                  <div key={session.id} className={`border rounded-2xl p-4 transition-all ${selectedSessionId === session.id ? 'border-blue-500 bg-blue-50/40' : 'border-slate-200 hover:border-slate-300'}`}>
+                  <div key={session.id} onClick={() => setSelectedSessionId(session.id)} className={`border rounded-2xl p-4 transition-all cursor-pointer ${selectedSessionId === session.id ? 'border-blue-500 bg-blue-50/40' : 'border-slate-200 hover:border-slate-300'}`}>
                     <div className="flex items-start justify-between gap-3">
-                      <div className="cursor-pointer" onClick={() => setSelectedSessionId(session.id)}>
+                      <div>
                         <div className="text-base font-bold text-slate-800">{session.title}</div>
                         <div className="text-xs text-slate-500 mt-1">{methodLabelMap[session.signMethod] || '未设置方式'}</div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <button onClick={() => openEdit(session)} className="text-xs text-blue-600 hover:text-blue-700">编辑</button>
-                        <button onClick={() => handleDelete(session)} className="text-xs text-red-500 hover:text-red-600">删除</button>
+                        <button onClick={(e) => { e.stopPropagation(); openEdit(session); }} className="text-xs text-blue-600 hover:text-blue-700">编辑</button>
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(session); }} className="text-xs text-red-500 hover:text-red-600">删除</button>
                       </div>
                     </div>
                     <div className="text-xs text-slate-500 mt-3 space-y-1">
@@ -312,7 +323,9 @@ export default function OfflineSignManagement() {
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="font-bold text-slate-800">签到记录</h3>
-              <p className="text-xs text-slate-500 mt-1">查看该场次应到学员的签到/签退完成情况</p>
+              <p className="text-xs text-slate-500 mt-1">
+                {selectedSession ? `当前场次：${selectedSession.title}，查看该场次应到学员的签到/签退完成情况` : '查看该场次应到学员的签到/签退完成情况'}
+              </p>
             </div>
             {recordSummary && (
               <div className="flex items-center gap-4 text-xs">
@@ -402,22 +415,22 @@ export default function OfflineSignManagement() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">签到开始</label>
-                    <input type="datetime-local" required value={form.signInStartAt} onChange={(e) => setForm((prev) => ({ ...prev, signInStartAt: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="datetime-local" required value={form.signInStartAt} onChange={(e) => setForm((prev) => ({ ...prev, signInStartAt: e.target.value }))} className="datetime-input w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-slate-700 mb-2">签到结束</label>
-                    <input type="datetime-local" required value={form.signInEndAt} onChange={(e) => setForm((prev) => ({ ...prev, signInEndAt: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                    <input type="datetime-local" required value={form.signInEndAt} onChange={(e) => setForm((prev) => ({ ...prev, signInEndAt: e.target.value }))} className="datetime-input w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
                   </div>
                 </div>
                 {form.needSignOut && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">签退开始</label>
-                      <input type="datetime-local" required value={form.signOutStartAt} onChange={(e) => setForm((prev) => ({ ...prev, signOutStartAt: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="datetime-local" required value={form.signOutStartAt} onChange={(e) => setForm((prev) => ({ ...prev, signOutStartAt: e.target.value }))} className="datetime-input w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">签退结束</label>
-                      <input type="datetime-local" required value={form.signOutEndAt} onChange={(e) => setForm((prev) => ({ ...prev, signOutEndAt: e.target.value }))} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
+                      <input type="datetime-local" required value={form.signOutEndAt} onChange={(e) => setForm((prev) => ({ ...prev, signOutEndAt: e.target.value }))} className="datetime-input w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
                   </div>
                 )}

@@ -23,5 +23,7 @@ public interface UserService extends IService<User> {
     
     Page<User> pageWithDepts(Page<User> page, String name);
 
+    User getUserWithDept(Long userId);
+
     Map<String, Object> login(FrontendLoginRequest request);
 }

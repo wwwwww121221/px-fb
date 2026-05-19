@@ -33,6 +33,7 @@ import com.pxwork.common.entity.User;
 import com.pxwork.common.service.UserService;
 import com.pxwork.common.service.ai.DifyApiService;
 import com.pxwork.common.utils.Result;
+import com.pxwork.course.dto.QuestionBindItem;
 import com.pxwork.course.entity.Course;
 import com.pxwork.course.entity.Exam;
 import com.pxwork.course.entity.ExamQuestion;
@@ -97,7 +98,7 @@ public class BackendExamController {
 
     @Operation(summary = "考试分页列表")
     @GetMapping("/exams")
-    public Result<Page<Exam>> list(
+    public Result<Page<Map<String, Object>>> list(
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size,
             @RequestParam(required = false) Long courseId,
@@ -130,7 +131,33 @@ public class BackendExamController {
             queryWrapper.like(Exam::getTitle, title);
         }
         queryWrapper.orderByDesc(Exam::getCreatedAt);
-        return Result.success(examService.page(page, queryWrapper));
+        Page<Exam> examPage = examService.page(page, queryWrapper);
+        List<Exam> records = examPage.getRecords();
+        final Map<Long, Long> questionCountMap;
+        if (records != null && !records.isEmpty()) {
+            List<Long> examIds = records.stream().map(Exam::getId).collect(Collectors.toList());
+            List<ExamQuestion> relations = examQuestionService.list(new LambdaQueryWrapper<ExamQuestion>()
+                    .in(ExamQuestion::getExamId, examIds));
+            questionCountMap = relations.stream().collect(Collectors.groupingBy(ExamQuestion::getExamId, Collectors.counting()));
+        } else {
+            questionCountMap = new HashMap<>();
+        }
+
+        Page<Map<String, Object>> resultPage = new Page<>(examPage.getCurrent(), examPage.getSize(), examPage.getTotal());
+        List<Map<String, Object>> resultRecords = records.stream().map(exam -> {
+            Map<String, Object> row = new HashMap<>();
+            row.put("id", exam.getId());
+            row.put("courseId", exam.getCourseId());
+            row.put("title", exam.getTitle());
+            row.put("duration", exam.getDuration());
+            row.put("passTotalScore", exam.getPassTotalScore());
+            row.put("createdAt", exam.getCreatedAt());
+            row.put("questionCount", questionCountMap.getOrDefault(exam.getId(), 0L));
+            row.put("paperReady", questionCountMap.getOrDefault(exam.getId(), 0L) > 0);
+            return row;
+        }).collect(Collectors.toList());
+        resultPage.setRecords(resultRecords);
+        return Result.success(resultPage);
     }
 
     @Operation(summary = "考试详情")
@@ -215,7 +242,7 @@ public class BackendExamController {
 
     @Operation(summary = "手动绑定试卷题目")
     @PostMapping("/exams/{id}/bind-questions")
-    public Result<Map<String, Object>> bindQuestions(@PathVariable Long id, @RequestBody List<Long> questionIds) {
+    public Result<Map<String, Object>> bindQuestions(@PathVariable Long id, @RequestBody List<QuestionBindItem> questionItems) {
         Long currentAdminId = StpUtil.getLoginIdAsLong();
         boolean isSuperAdmin = isSuperAdmin(currentAdminId);
         Exam exam = examService.getById(id);
@@ -226,7 +253,7 @@ public class BackendExamController {
             return Result.fail("无权限操作该考试");
         }
         try {
-            Map<String, Object> result = examQuestionService.bindQuestions(id, questionIds);
+            Map<String, Object> result = examQuestionService.bindQuestions(id, questionItems);
             return Result.success(result);
         } catch (IllegalArgumentException e) {
             return Result.fail(e.getMessage());
@@ -249,6 +276,7 @@ public class BackendExamController {
             return Result.fail("题型抽取配置不能为空");
         }
         Course course = courseService.getById(exam.getCourseId());
+        BigDecimal totalScore = BigDecimal.ZERO;
 
         List<ExamQuestion> generated = new ArrayList<>();
         int sort = 1;
@@ -260,7 +288,9 @@ public class BackendExamController {
             if (!StringUtils.hasText(questionType) || count == null || count <= 0) {
                 continue;
             }
+            totalScore = totalScore.add(score.multiply(BigDecimal.valueOf(count)));
             LambdaQueryWrapper<Question> queryWrapper = new LambdaQueryWrapper<Question>()
+                    .eq(Question::getCourseId, exam.getCourseId())
                     .eq(Question::getQuestionType, questionType);
             if (course != null && StringUtils.hasText(course.getTargetRoles())) {
                 String[] roles = course.getTargetRoles().split(",");
@@ -291,6 +321,9 @@ public class BackendExamController {
                 examQuestion.setSort(sort++);
                 generated.add(examQuestion);
             }
+        }
+        if (totalScore.compareTo(new BigDecimal("100")) != 0) {
+            return Result.fail("随机抽题总分必须正好为100分，当前为" + totalScore.stripTrailingZeros().toPlainString() + "分");
         }
         examQuestionService.remove(new LambdaQueryWrapper<ExamQuestion>().eq(ExamQuestion::getExamId, id));
         if (!generated.isEmpty()) {
@@ -340,6 +373,7 @@ public class BackendExamController {
             StringBuilder requirementsBuilder = new StringBuilder();
             int totalExpected = 0;
             Map<String, BigDecimal> typeScoreMap = new HashMap<>();
+            BigDecimal totalScore = BigDecimal.ZERO;
             for (Map.Entry<String, QuestionTypeConfig> entry : configMap.entrySet()) {
                 QuestionTypeConfig config = entry.getValue();
                 Integer count = config == null ? null : config.getCount();
@@ -349,10 +383,14 @@ public class BackendExamController {
                     String normalizedType = aiQuestionParseUtil.normalizeQuestionType(entry.getKey());
                     BigDecimal score = config.getScore() == null ? BigDecimal.ONE : config.getScore();
                     typeScoreMap.put(normalizedType, score);
+                    totalScore = totalScore.add(score.multiply(BigDecimal.valueOf(count)));
                 }
             }
             if (totalExpected == 0) {
                 return Result.fail("题目总数不能为0");
+            }
+            if (totalScore.compareTo(new BigDecimal("100")) != 0) {
+                return Result.fail("AI出卷总分必须正好为100分，当前为" + totalScore.stripTrailingZeros().toPlainString() + "分");
             }
             String questionRequirements = requirementsBuilder.toString();
 

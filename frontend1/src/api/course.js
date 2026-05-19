@@ -172,8 +172,8 @@ export const autoGenerateExam = (id, config) => {
 };
 
 // 🌟 3. 手动绑定试卷题目
-export const bindExamQuestions = (id, questionIds) => {
-  return request.post(`/backend/exams/${id}/bind-questions`, questionIds);
+export const bindExamQuestions = (id, questionItems) => {
+  return request.post(`/backend/exams/${id}/bind-questions`, questionItems);
 };
 
 // 🌟 获取考试列表 (用于通过 courseId 过滤出真实的考试 ID)

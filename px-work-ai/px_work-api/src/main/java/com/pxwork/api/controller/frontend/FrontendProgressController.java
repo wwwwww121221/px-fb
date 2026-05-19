@@ -141,7 +141,7 @@ public class FrontendProgressController {
                 .eq(CourseHourRecord::getIsFinished, 1));
 
         Map<String, Object> result = new HashMap<>();
-        result.put("isCompleted", totalHours > 0 && finishedHours == totalHours);
+        result.put("isCompleted", totalHours > 0 && finishedHours >= totalHours);
         result.put("totalHours", totalHours);
         result.put("finishedHours", finishedHours);
         return Result.success(result);

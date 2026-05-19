@@ -881,7 +881,7 @@ export default function CourseList() {
                   
                   <div className="space-y-1.5">
                     <label className="text-sm font-medium text-slate-700">提交截止时间 <span className="text-red-500">*</span></label>
-                    <input required type="datetime-local" value={assignFormData.deadline} onChange={e => setAssignFormData({...assignFormData, deadline: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
+                    <input required type="datetime-local" value={assignFormData.deadline} onChange={e => setAssignFormData({...assignFormData, deadline: e.target.value})} className="datetime-input w-full border border-slate-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500" />
                   </div>
                   
                   <div className="flex justify-end gap-3 pt-2">

@@ -2,3 +2,15 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+input.datetime-input {
+  color-scheme: light;
+}
+
+input.datetime-input:invalid {
+  color: #94a3b8;
+}
+
+input.datetime-input:valid {
+  color: #0f172a;
+}

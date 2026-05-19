@@ -240,7 +240,7 @@ export default function CourseBuild() {
           </div>
         ) : (
           <div className="space-y-6">
-            {chapters.map((chapter) => (
+            {chapters.map((chapter, cIndex) => (
               <div key={chapter.id} className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden shadow-sm">
                 
                 <div className="bg-slate-50 dark:bg-slate-800/50 px-5 py-3 flex justify-between items-center border-b border-slate-200 dark:border-slate-700">

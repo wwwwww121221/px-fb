@@ -61,7 +61,7 @@ public class FrontendLoginController {
     @GetMapping("/user/info")
     public Result<User> userInfo() {
         long userId = StpUserUtil.getLoginIdAsLong();
-        User user = userService.getById(userId);
+        User user = userService.getUserWithDept(userId);
         if (user != null) {
             user.setPassword(null);
         }

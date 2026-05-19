@@ -222,7 +222,7 @@ export default function Questions() {
     switch (type) {
       case 'single_choice': case 'SINGLE': case '单选题': case '单选': return <span className="px-2.5 py-1 inline-flex text-xs font-bold rounded-full bg-blue-100 text-blue-700 border border-blue-200">单选题</span>;
       case 'multiple_choice': case 'MULTIPLE': case '多选': case '多选题': return <span className="px-2.5 py-1 inline-flex text-xs font-bold rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">多选题</span>;
-      case 'judge': case 'JUDGE': case '判断题': case '判断': return <span className="px-2.5 py-1 inline-flex text-xs font-bold rounded-full bg-amber-100 text-amber-700 border border-amber-200">判断题</span>;
+      case 'judge': case 'JUDGE': case 'true_false': case 'TRUE_FALSE': case '判断题': case '判断': return <span className="px-2.5 py-1 inline-flex text-xs font-bold rounded-full bg-amber-100 text-amber-700 border border-amber-200">判断题</span>;
       case 'short_answer': case '简答题': case '简答': return <span className="px-2.5 py-1 inline-flex text-xs font-bold rounded-full bg-rose-100 text-rose-700 border border-rose-200">简答题</span>;
       default: return <span className="px-2.5 py-1 inline-flex text-xs font-bold rounded-full bg-slate-100 text-slate-700 border border-slate-200">{type || '未知'}</span>;
     }

@@ -131,7 +131,7 @@ export default function TakeExam() {
     switch (type) {
       case 'single_choice': case '单选': case '单选题': return <span className={`${baseClass} bg-sky-50 text-sky-700 border-sky-100`}>单选题</span>;
       case 'multiple_choice': case '多选': case '多选题': return <span className={`${baseClass} bg-indigo-50 text-indigo-700 border-indigo-100`}>多选题</span>;
-      case 'judge': case '判断': case '判断题': case 'true_false': return <span className={`${baseClass} bg-amber-50 text-amber-700 border-amber-100`}>判断题</span>;
+      case 'judge': case '判断': case '判断题': case 'true_false': case 'TRUE_FALSE': return <span className={`${baseClass} bg-amber-50 text-amber-700 border-amber-100`}>判断题</span>;
       case 'short_answer': case '简答': case '简答题': return <span className={`${baseClass} bg-rose-50 text-rose-700 border-rose-100`}>简答题</span>;
       default: return <span className={`${baseClass} bg-slate-50 text-slate-700 border-slate-100`}>{type}</span>;
     }

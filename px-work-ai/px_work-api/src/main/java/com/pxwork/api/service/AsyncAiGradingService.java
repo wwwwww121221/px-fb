@@ -121,6 +121,31 @@ public class AsyncAiGradingService {
             userExamService.calculateFinalResult(userExamId);
         } catch (Exception e) {
             log.error("Async AI grading failed, userExamId={}", userExamId, e);
+            try {
+                UserExam failedExam = userExamService.getById(userExamId);
+                if (failedExam != null) {
+                    List<UserExamAnswer> pendingAnswers = userExamAnswerService.list(new LambdaQueryWrapper<UserExamAnswer>()
+                            .eq(UserExamAnswer::getUserExamId, userExamId)
+                            .isNull(UserExamAnswer::getIsCorrect));
+                    for (UserExamAnswer pending : pendingAnswers) {
+                        if (pending.getScore() == null) {
+                            pending.setScore(BigDecimal.ZERO);
+                        }
+                        if (!StringUtils.hasText(pending.getAiComment())) {
+                            pending.setAiComment("AI判卷失败，请检查 Dify 判卷工作流或密钥配置");
+                        }
+                    }
+                    if (!pendingAnswers.isEmpty()) {
+                        userExamAnswerService.updateBatchById(pendingAnswers);
+                    }
+                    failedExam.setSubjectiveScore(BigDecimal.ZERO);
+                    failedExam.setStatus(2);
+                    userExamService.updateById(failedExam);
+                    userExamService.calculateFinalResult(userExamId);
+                }
+            } catch (Exception fallbackEx) {
+                log.error("AI grading fallback status update failed, userExamId={}", userExamId, fallbackEx);
+            }
         }
     }
 

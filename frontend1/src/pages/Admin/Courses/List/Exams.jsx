@@ -25,7 +25,7 @@ export default function Exams() {
 
   const [bindModal, setBindModal] = useState({ isOpen: false, examId: null, isSubmitting: false });
   const [bankQuestions, setBankQuestions] = useState([]);
-  const [selectedQIds, setSelectedQIds] = useState([]);
+  const [selectedQuestions, setSelectedQuestions] = useState([]);
   const [loadingQs, setLoadingQs] = useState(false);
 
   const [previewModal, setPreviewModal] = useState({ isOpen: false, examTitle: '' });
@@ -61,6 +61,44 @@ export default function Exams() {
       }
     });
   };
+
+  const getQuestionTypeText = (type) => {
+    switch (type) {
+      case 'single_choice':
+      case 'SINGLE':
+      case '单选':
+      case '单选题':
+        return '单选题';
+      case 'multiple_choice':
+      case 'MULTIPLE':
+      case '多选':
+      case '多选题':
+        return '多选题';
+      case 'judge':
+      case 'JUDGE':
+      case 'true_false':
+      case 'TRUE_FALSE':
+      case '判断':
+      case '判断题':
+        return '判断题';
+      case 'short_answer':
+      case '简答':
+      case '简答题':
+        return '简答题';
+      default:
+        return type || '未知';
+    }
+  };
+
+  const calculateConfigTotalScore = (config) => Object.values(config).reduce((sum, item) => {
+    if (!item.enabled) return sum;
+    return sum + (parseInt(item.count, 10) || 0) * (parseInt(item.score, 10) || 0);
+  }, 0);
+
+  const autoTotalScore = calculateConfigTotalScore(autoConfig);
+  const aiTotalScore = calculateConfigTotalScore(aiConfig);
+  const selectedQIds = selectedQuestions.map((item) => item.questionId);
+  const manualTotalScore = selectedQuestions.reduce((sum, item) => sum + (parseInt(item.score, 10) || 0), 0);
 
   useEffect(() => {
     fetchExams();
@@ -141,6 +179,7 @@ export default function Exams() {
   // ================= 🌟 终极修复：中英混杂的底层 Key 映射 =================
   const handleAutoGenerateSubmit = async (e) => {
     e.preventDefault();
+    if (autoTotalScore !== 100) return alert(`当前抽题总分为 ${autoTotalScore} 分，必须正好达到 100 分才能出卷！`);
     const configPayload = {};
     
     // ⚠️ 严格采用后端的奇葩命名法：single_choice, 多选, judge, short_answer
@@ -165,20 +204,26 @@ export default function Exams() {
   };
 
   const openBindModal = async (id) => {
+    const targetExam = examList.find((item) => item.id === id);
+    if (targetExam && (Number(targetExam.questionCount || 0) > 0 || targetExam.paperReady)) {
+      alert('该试卷已完成组卷，不能重复选题。若需重新组卷，请先删除该考试后重建。');
+      return;
+    }
     setBindModal({ isOpen: true, examId: id, isSubmitting: false });
-    setSelectedQIds([]);
+    setSelectedQuestions([]);
     setLoadingQs(true);
     try {
-      const res = await getQuestionList({ current: 1, size: 100 });
+      const res = await getQuestionList({ current: 1, size: 100, courseId: parseInt(courseId, 10) });
       setBankQuestions(res?.records || res?.data?.records || []);
     } catch (e) { console.error(e); } finally { setLoadingQs(false); }
   };
 
   const handleBindSubmit = async () => {
-    if (selectedQIds.length === 0) return alert('请至少勾选一道题目！');
+    if (selectedQuestions.length === 0) return alert('请至少勾选一道题目！');
+    if (manualTotalScore !== 100) return alert(`手动选题当前总分 ${manualTotalScore} 分，必须正好 100 分才能绑定。`);
     setBindModal(p => ({ ...p, isSubmitting: true }));
     try {
-      await bindExamQuestions(bindModal.examId, selectedQIds); 
+      await bindExamQuestions(bindModal.examId, selectedQuestions); 
       alert('✅ 手动绑定题目成功！');
       setBindModal({ isOpen: false, examId: null, isSubmitting: false });
     } catch (error) {
@@ -187,12 +232,20 @@ export default function Exams() {
     }
   };
 
-  const toggleQuestionSelection = (id) => {
-    if (selectedQIds.includes(id)) {
-      setSelectedQIds(selectedQIds.filter(qId => qId !== id));
-    } else {
-      setSelectedQIds([...selectedQIds, id]);
-    }
+  const toggleQuestionSelection = (questionId) => {
+    setSelectedQuestions((prev) => {
+      const exists = prev.some((item) => item.questionId === questionId);
+      if (exists) {
+        return prev.filter((item) => item.questionId !== questionId);
+      }
+      return [...prev, { questionId, score: 1 }];
+    });
+  };
+
+  const updateSelectedQuestionScore = (questionId, score) => {
+    setSelectedQuestions((prev) => prev.map((item) => (
+      item.questionId === questionId ? { ...item, score } : item
+    )));
   };
 
   const handlePreviewExam = async (exam) => {
@@ -241,6 +294,7 @@ export default function Exams() {
     if (!aiForm.title.trim()) return alert('请输入试卷标题');
     if (!aiForm.jobRoleTags || aiForm.jobRoleTags.length === 0) return alert('请至少选择一个岗位标签');
     if (!aiForm.file) return alert('请上传用于 AI 提取知识的参考文件 (PDF/Word/TXT等)');
+    if (aiTotalScore !== 100) return alert(`当前 AI 出卷总分为 ${aiTotalScore} 分，必须正好达到 100 分才能出卷！`);
 
     const configObj = {};
     if (aiConfig.single.enabled) configObj['单选'] = { count: Number(aiConfig.single.count), score: Number(aiConfig.single.score) };
@@ -278,9 +332,9 @@ export default function Exams() {
     switch (type) {
       case 'single_choice': case 'SINGLE': case '单选题': case '单选': return <span className="px-2 py-0.5 inline-flex text-[10px] font-bold rounded bg-blue-100 text-blue-700">单选题</span>;
       case 'multiple_choice': case 'MULTIPLE': case '多选': case '多选题': return <span className="px-2 py-0.5 inline-flex text-[10px] font-bold rounded bg-indigo-100 text-indigo-700">多选题</span>;
-      case 'judge': case 'JUDGE': case '判断题': case '判断': return <span className="px-2 py-0.5 inline-flex text-[10px] font-bold rounded bg-amber-100 text-amber-700">判断题</span>;
+      case 'judge': case 'JUDGE': case 'true_false': case 'TRUE_FALSE': case '判断题': case '判断': return <span className="px-2 py-0.5 inline-flex text-[10px] font-bold rounded bg-amber-100 text-amber-700">判断题</span>;
       case 'short_answer': case '简答题': case '简答': return <span className="px-2 py-0.5 inline-flex text-[10px] font-bold rounded bg-rose-100 text-rose-700">简答题</span>;
-      default: return <span className="px-2 py-0.5 inline-flex text-[10px] font-bold rounded bg-slate-100 text-slate-700">{type || '未知'}</span>;
+      default: return <span className="px-2 py-0.5 inline-flex text-[10px] font-bold rounded bg-slate-100 text-slate-700">{getQuestionTypeText(type)}</span>;
     }
   };
 
@@ -378,13 +432,18 @@ export default function Exams() {
                        <button onClick={() => handlePreviewExam(exam)} className="px-3 py-1.5 bg-rose-50 border border-rose-100 hover:bg-rose-100 text-rose-700 rounded-md text-xs font-bold shadow-sm transition-colors flex items-center gap-1">
                           <span className="material-symbols-outlined text-[16px]">plagiarism</span> 预览试卷
                        </button>
-                       <button onClick={() => openBindModal(exam.id)} className="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-400 text-blue-600 rounded-md text-xs font-bold shadow-sm transition-colors flex items-center gap-1">
+                       <button onClick={() => openBindModal(exam.id)} disabled={Number(exam.questionCount || 0) > 0 || exam.paperReady} className="px-3 py-1.5 bg-white border border-slate-200 hover:border-blue-400 text-blue-600 rounded-md text-xs font-bold shadow-sm transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                           <span className="material-symbols-outlined text-[16px]">checklist</span> 选卷
                        </button>
-                       <button onClick={() => setAutoModal({ isOpen: true, examId: exam.id, isSubmitting: false })} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 rounded-md text-xs font-bold shadow-sm transition-colors flex items-center gap-1">
+                       <button onClick={() => setAutoModal({ isOpen: true, examId: exam.id, isSubmitting: false })} disabled={Number(exam.questionCount || 0) > 0 || exam.paperReady} className="px-3 py-1.5 bg-indigo-50 border border-indigo-100 hover:bg-indigo-100 text-indigo-700 rounded-md text-xs font-bold shadow-sm transition-colors flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                           <span className="material-symbols-outlined text-[16px]">casino</span> 抽题
                        </button>
                     </div>
+                    {(Number(exam.questionCount || 0) > 0 || exam.paperReady) ? (
+                      <div className="mt-2 text-xs text-emerald-600 font-medium">已组卷，共 {exam.questionCount || 0} 题</div>
+                    ) : (
+                      <div className="mt-2 text-xs text-slate-400">未组卷，可选题或抽题</div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <button onClick={() => openScoreModal(exam)} className="text-white bg-emerald-500 hover:bg-emerald-600 px-3 py-1 rounded text-xs font-bold shadow-sm transition-colors mr-2">
@@ -581,6 +640,10 @@ export default function Exams() {
             </div>
             <form onSubmit={handleAutoGenerateSubmit} className="p-6 space-y-4">
               <p className="text-sm text-slate-500 mb-4">系统将根据您在此处配置的规则，去题库中随机抽取题目放入该试卷。</p>
+              <div className={`rounded-xl px-4 py-2.5 flex items-center gap-2.5 ${autoTotalScore === 100 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+                <span className={`material-symbols-outlined text-[18px] shrink-0 ${autoTotalScore === 100 ? 'text-emerald-500' : 'text-amber-500'}`}>{autoTotalScore === 100 ? 'task_alt' : 'warning'}</span>
+                <span className={`text-xs font-bold ${autoTotalScore === 100 ? 'text-emerald-700' : 'text-amber-700'}`}>抽题总分必须正好达到 100 分（当前: {autoTotalScore} 分）</span>
+              </div>
               <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
                 {Object.keys(autoConfig).map((key) => {
                   const item = autoConfig[key];
@@ -601,7 +664,7 @@ export default function Exams() {
                 })}
               </div>
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button type="submit" disabled={autoModal.isSubmitting} className="w-full py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md disabled:opacity-50">
+                <button type="submit" disabled={autoModal.isSubmitting || autoTotalScore !== 100} className="w-full py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-md disabled:opacity-50">
                   {autoModal.isSubmitting ? '抽题中...' : '开始随机抽题'}
                 </button>
               </div>
@@ -620,27 +683,45 @@ export default function Exams() {
             </div>
             
             <div className="p-4 bg-slate-50 border-b border-slate-100 flex justify-between items-center shrink-0">
-              <span className="text-sm font-bold text-slate-600">已选中 <strong className="text-blue-600 text-lg">{selectedQIds.length}</strong> 道题目</span>
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-slate-600">已选中 <strong className="text-blue-600 text-lg">{selectedQIds.length}</strong> 道题目，当前总分 <strong className={manualTotalScore === 100 ? 'text-emerald-600 text-lg' : 'text-amber-600 text-lg'}>{manualTotalScore}</strong> 分</span>
+                <span className="text-xs text-slate-400 mt-1">勾选后可为每道题单独设置分值，必须正好 100 分才能绑定</span>
+              </div>
             </div>
 
             <div className="flex-1 overflow-auto p-2">
               {loadingQs ? <p className="text-center text-slate-400 py-10">加载题库中...</p> : (
                 <div className="space-y-2">
-                  {bankQuestions.map(q => (
-                    <label key={q.id} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selectedQIds.includes(q.id) ? 'bg-blue-50 border-blue-300' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
-                      <input type="checkbox" checked={selectedQIds.includes(q.id)} onChange={() => toggleQuestionSelection(q.id)} className="mt-1 w-4 h-4 text-blue-600 rounded"/>
-                      <div className="flex-1">
-                        <div className="text-sm font-bold text-slate-800 line-clamp-2">{q.content}</div>
-                        <div className="text-xs text-slate-400 mt-1">题型: {q.questionType} | 标签: {q.jobRoleTag || '无'}</div>
+                  {bankQuestions.map(q => {
+                    const selectedItem = selectedQuestions.find((item) => item.questionId === q.id);
+                    const checked = Boolean(selectedItem);
+                    return (
+                      <div key={q.id} className={`flex items-start gap-3 p-3 rounded-lg border transition-colors ${checked ? 'bg-blue-50 border-blue-300' : 'bg-white border-slate-200 hover:bg-slate-50'}`}>
+                        <input type="checkbox" checked={checked} onChange={() => toggleQuestionSelection(q.id)} className="mt-1 w-4 h-4 text-blue-600 rounded"/>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-bold text-slate-800 line-clamp-2">{q.content}</div>
+                          <div className="text-xs text-slate-400 mt-1">题型: {getQuestionTypeText(q.questionType)} | 标签: {q.jobRoleTag || '无'}</div>
+                        </div>
+                        <div className={`flex items-center gap-2 ${checked ? 'opacity-100' : 'opacity-40 pointer-events-none'}`}>
+                          <span className="text-xs text-slate-500 whitespace-nowrap">分值</span>
+                          <input
+                            type="number"
+                            min="1"
+                            max="100"
+                            value={selectedItem?.score ?? 1}
+                            onChange={(e) => updateSelectedQuestionScore(q.id, e.target.value)}
+                            className="w-16 border border-slate-300 rounded-md px-2 py-1 text-sm text-center outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
                       </div>
-                    </label>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
 
             <div className="px-6 py-4 border-t border-slate-100 bg-white shrink-0 flex justify-end">
-               <button onClick={handleBindSubmit} disabled={bindModal.isSubmitting || selectedQIds.length === 0} className="px-8 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md disabled:opacity-50">
+               <button onClick={handleBindSubmit} disabled={bindModal.isSubmitting || selectedQIds.length === 0 || manualTotalScore !== 100} className="px-8 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-md disabled:opacity-50">
                  {bindModal.isSubmitting ? '保存绑定中...' : '确认绑定所选题目'}
                </button>
             </div>
@@ -725,9 +806,9 @@ export default function Exams() {
                 {/* 🌟 题型结构配置器 */}
                 <div className="space-y-2">
                   <label className="text-sm font-bold text-slate-700">期望的试卷结构</label>
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex items-center gap-2.5 mb-1">
-                    <span className="material-symbols-outlined text-[18px] text-amber-500 shrink-0">warning</span>
-                    <span className="text-xs font-bold text-amber-700">出题分数总和必须达到 100 分（当前: {Object.values(aiConfig).reduce((sum, q) => sum + (q.enabled ? (parseInt(q.count) || 0) * (parseInt(q.score) || 0) : 0), 0)} 分）</span>
+                  <div className={`rounded-xl px-4 py-2.5 flex items-center gap-2.5 mb-1 ${aiTotalScore === 100 ? 'bg-emerald-50 border border-emerald-200' : 'bg-amber-50 border border-amber-200'}`}>
+                    <span className={`material-symbols-outlined text-[18px] shrink-0 ${aiTotalScore === 100 ? 'text-emerald-500' : 'text-amber-500'}`}>{aiTotalScore === 100 ? 'task_alt' : 'warning'}</span>
+                    <span className={`text-xs font-bold ${aiTotalScore === 100 ? 'text-emerald-700' : 'text-amber-700'}`}>出题分数总和必须达到 100 分（当前: {aiTotalScore} 分）</span>
                   </div>
                   <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
                     {Object.keys(aiConfig).map((key) => {
@@ -764,7 +845,7 @@ export default function Exams() {
                 <button type="button" disabled={aiModal.isGenerating} onClick={() => setAiModal({ isOpen: false, isGenerating: false })} className="px-5 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-300 hover:bg-slate-100 rounded-lg transition-colors shadow-sm disabled:opacity-50">
                   取消
                 </button>
-                <button type="submit" disabled={aiModal.isGenerating} className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 rounded-lg disabled:opacity-80 transition-all shadow-md shadow-violet-500/40 flex items-center gap-2 w-40 justify-center">
+                <button type="submit" disabled={aiModal.isGenerating || aiTotalScore !== 100} className="px-6 py-2.5 text-sm font-bold text-white bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-700 hover:to-fuchsia-700 rounded-lg disabled:opacity-80 transition-all shadow-md shadow-violet-500/40 flex items-center gap-2 w-40 justify-center">
                   {aiModal.isGenerating ? (
                     <><span className="material-symbols-outlined animate-spin text-[18px]">sync</span> 生成中...</>
                   ) : (

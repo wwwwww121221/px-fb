@@ -110,7 +110,7 @@ public class BackendOfflineSignController {
     @SaCheckPermission("course:update")
     @PostMapping("/{courseId}/offline-sign/session")
     @Transactional(rollbackFor = Exception.class)
-    public Result<Boolean> createSession(@PathVariable Long courseId, @RequestBody SessionForm form) {
+    public Result<Map<String, Object>> createSession(@PathVariable Long courseId, @RequestBody SessionForm form) {
         try {
             Course course = requireCourseAccess(courseId);
             validateForm(form);
@@ -122,7 +122,10 @@ public class BackendOfflineSignController {
             }
             saveSessionDepartments(session.getId(), form.getDepartmentIds());
             ensureOfflineCourseMode(course);
-            return Result.success(true);
+            Map<String, Object> result = new HashMap<>();
+            result.put("id", session.getId());
+            result.put("title", session.getTitle());
+            return Result.success(result);
         } catch (IllegalArgumentException ex) {
             return Result.fail(ex.getMessage());
         }

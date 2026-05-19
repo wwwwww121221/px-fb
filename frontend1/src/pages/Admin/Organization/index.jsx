@@ -592,11 +592,11 @@ export default function Organization() {
                   
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">所属部门</label>
-                    <input name="deptName" value={formData.deptName || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="请输入所属部门 (选填)" />
+                    <input name="deptName" value={formData.deptName || ''} readOnly type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500 outline-none cursor-not-allowed dark:bg-slate-800/60 dark:border-slate-700" placeholder="选择组织部门后自动生成" />
                   </div>
                   <div className="space-y-1">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">科室</label>
-                    <input name="office" value={formData.office || ''} onChange={handleFormChange} type="text" className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:bg-slate-800 dark:border-slate-700" placeholder="请输入科室 (选填)" />
+                    <input name="office" value={formData.office || ''} readOnly type="text" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm bg-slate-50 text-slate-500 outline-none cursor-not-allowed dark:bg-slate-800/60 dark:border-slate-700" placeholder="选择组织部门后自动生成" />
                   </div>
                   <div className="space-y-1 sm:col-span-2">
                     <label className="text-sm font-medium text-slate-700 dark:text-slate-300">岗位角色</label>

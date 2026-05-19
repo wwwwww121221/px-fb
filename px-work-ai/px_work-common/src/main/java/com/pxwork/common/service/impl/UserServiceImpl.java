@@ -1,8 +1,11 @@
 package com.pxwork.common.service.impl;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.ArrayList;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
@@ -92,24 +95,21 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         if (userPage.getRecords().isEmpty()) {
             return userPage;
         }
-        
-        List<Long> userIds = userPage.getRecords().stream().map(User::getId).collect(Collectors.toList());
-        List<UserDepartment> userDepartments = userDepartmentService.list(new LambdaQueryWrapper<UserDepartment>()
-                .in(UserDepartment::getUserId, userIds));
-
-        Map<Long, Long> userDeptIdMap = userDepartments.stream()
-                .collect(Collectors.toMap(UserDepartment::getUserId, UserDepartment::getDepartmentId, (first, second) -> first));
-        List<Long> deptIds = userDeptIdMap.values().stream().distinct().collect(Collectors.toList());
-        Map<Long, Department> deptMap = deptIds.isEmpty() ? Map.of() : departmentService.listByIds(deptIds).stream()
-                .collect(Collectors.toMap(Department::getId, dept -> dept));
-
-        for (User user : userPage.getRecords()) {
-            Long departmentId = userDeptIdMap.get(user.getId());
-            user.setDepartmentId(departmentId);
-            user.setDepartment(departmentId == null ? null : deptMap.get(departmentId));
-        }
-        
+        enrichUsersWithDepartments(userPage.getRecords());
         return userPage;
+    }
+
+    @Override
+    public User getUserWithDept(Long userId) {
+        if (userId == null || userId <= 0) {
+            return null;
+        }
+        User user = this.getById(userId);
+        if (user == null) {
+            return null;
+        }
+        enrichUsersWithDepartments(List.of(user));
+        return user;
     }
 
     @Override
@@ -133,11 +133,94 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
     private void saveDepartment(Long userId, Long departmentId) {
-        if (departmentId != null) {
+        if (departmentId != null && departmentId > 0) {
             UserDepartment userDepartment = new UserDepartment();
             userDepartment.setUserId(userId);
             userDepartment.setDepartmentId(departmentId);
             userDepartmentService.save(userDepartment);
         }
+    }
+
+    private void enrichUsersWithDepartments(List<User> users) {
+        if (users == null || users.isEmpty()) {
+            return;
+        }
+        List<Long> userIds = users.stream()
+                .map(User::getId)
+                .filter(id -> id != null && id > 0)
+                .collect(Collectors.toList());
+        if (userIds.isEmpty()) {
+            return;
+        }
+
+        List<UserDepartment> userDepartments = userDepartmentService.list(new LambdaQueryWrapper<UserDepartment>()
+                .in(UserDepartment::getUserId, userIds));
+        Map<Long, Long> userDeptIdMap = userDepartments.stream()
+                .filter(item -> item.getUserId() != null)
+                .collect(Collectors.toMap(UserDepartment::getUserId, UserDepartment::getDepartmentId, (first, second) -> first));
+
+        Map<Long, Department> deptMap = departmentService.list().stream()
+                .filter(dept -> dept != null && dept.getId() != null)
+                .collect(Collectors.toMap(Department::getId, dept -> dept, (first, second) -> first));
+
+        for (User user : users) {
+            Long departmentId = userDeptIdMap.get(user.getId());
+            if (departmentId == null || departmentId <= 0) {
+                user.setDepartmentId(null);
+                user.setDepartment(null);
+                continue;
+            }
+            user.setDepartmentId(departmentId);
+            user.setDepartment(deptMap.get(departmentId));
+
+            List<String> chain = buildDepartmentChain(departmentId, deptMap);
+            if (chain.isEmpty()) {
+                continue;
+            }
+            if (chain.size() == 1) {
+                user.setDeptName(chain.get(0));
+                user.setOffice("");
+            } else if (chain.size() == 2) {
+                user.setDeptName(String.join("-", chain));
+                user.setOffice("");
+            } else {
+                user.setDeptName(String.join("-", chain.subList(0, 2)));
+                user.setOffice(chain.get(2));
+            }
+        }
+    }
+
+    private List<String> buildDepartmentChain(Long departmentId, Map<Long, Department> deptMap) {
+        if (departmentId == null || departmentId <= 0 || deptMap == null || deptMap.isEmpty()) {
+            return List.of();
+        }
+        Set<String> names = new LinkedHashSet<>();
+        List<String> reversed = new ArrayList<>();
+        Long currentId = departmentId;
+        int guard = 0;
+        while (currentId != null && currentId > 0 && guard < 20) {
+            Department current = deptMap.get(currentId);
+            if (current == null) {
+                break;
+            }
+            String name = normalizeDepartmentName(current.getName());
+            if (StringUtils.isNotBlank(name)) {
+                reversed.add(name);
+            }
+            currentId = current.getParentId();
+            guard += 1;
+        }
+        for (int i = reversed.size() - 1; i >= 0; i--) {
+            names.add(reversed.get(i));
+        }
+        return new ArrayList<>(names);
+    }
+
+    private String normalizeDepartmentName(String name) {
+        if (StringUtils.isBlank(name)) {
+            return null;
+        }
+        String value = name.trim();
+        return "/".equals(value) ? null : value;
     }
 }

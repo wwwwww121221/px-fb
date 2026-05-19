@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.pxwork.course.dto.QuestionBindItem;
 import com.pxwork.course.entity.Exam;
 import com.pxwork.course.entity.ExamQuestion;
 import com.pxwork.course.entity.Question;
@@ -34,68 +35,73 @@ public class ExamQuestionServiceImpl extends ServiceImpl<ExamQuestionMapper, Exa
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public Map<String, Object> bindQuestions(Long examId, List<Long> questionIds) {
+    public Map<String, Object> bindQuestions(Long examId, List<QuestionBindItem> questionItems) {
         Exam exam = examService.getById(examId);
         if (exam == null) {
             throw new IllegalArgumentException("考试不存在");
         }
-        if (questionIds == null || questionIds.isEmpty()) {
+        if (questionItems == null || questionItems.isEmpty()) {
             throw new IllegalArgumentException("请选择要绑定的题目");
         }
-        List<Long> distinctRequestedIds = questionIds.stream()
-                .filter(id -> id != null && id > 0)
-                .collect(Collectors.collectingAndThen(Collectors.toCollection(LinkedHashSet::new), ArrayList::new));
+
+        Map<Long, BigDecimal> questionScoreMap = new HashMap<>();
+        for (QuestionBindItem item : questionItems) {
+            if (item == null || item.getQuestionId() == null || item.getQuestionId() <= 0) {
+                continue;
+            }
+            BigDecimal score = item.getScore() == null ? BigDecimal.ZERO : item.getScore();
+            if (score.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalArgumentException("手动选题的题目分值必须大于0");
+            }
+            questionScoreMap.putIfAbsent(item.getQuestionId(), score);
+        }
+
+        List<Long> distinctRequestedIds = new ArrayList<>(questionScoreMap.keySet());
         if (distinctRequestedIds.isEmpty()) {
             throw new IllegalArgumentException("请选择要绑定的题目");
         }
 
         List<Question> existingQuestions = questionService.list(new LambdaQueryWrapper<Question>()
+                .eq(Question::getCourseId, exam.getCourseId())
                 .in(Question::getId, distinctRequestedIds));
         if (existingQuestions.isEmpty()) {
-            throw new IllegalArgumentException("所选题目不存在");
+            throw new IllegalArgumentException("所选题目不存在，或不属于当前课程题库");
         }
         Set<Long> validQuestionIds = existingQuestions.stream()
                 .map(Question::getId)
                 .collect(Collectors.toCollection(LinkedHashSet::new));
+        if (validQuestionIds.size() != distinctRequestedIds.size()) {
+            throw new IllegalArgumentException("所选题目中存在无效题目，或包含其他课程题目，请重新选择");
+        }
 
-        List<ExamQuestion> boundRelations = this.list(new LambdaQueryWrapper<ExamQuestion>()
-                .eq(ExamQuestion::getExamId, examId)
-                .in(ExamQuestion::getQuestionId, validQuestionIds));
-        Set<Long> alreadyBoundIds = boundRelations.stream()
-                .map(ExamQuestion::getQuestionId)
-                .collect(Collectors.toSet());
-
-        List<Long> toBindIds = validQuestionIds.stream()
-                .filter(id -> !alreadyBoundIds.contains(id))
-                .collect(Collectors.toList());
-
-        ExamQuestion maxSortRelation = this.getOne(new LambdaQueryWrapper<ExamQuestion>()
-                .eq(ExamQuestion::getExamId, examId)
-                .orderByDesc(ExamQuestion::getSort)
-                .last("limit 1"));
-        int nextSort = maxSortRelation == null || maxSortRelation.getSort() == null ? 1 : maxSortRelation.getSort() + 1;
+        BigDecimal totalScore = validQuestionIds.stream()
+                .map(id -> questionScoreMap.getOrDefault(id, BigDecimal.ZERO))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        if (totalScore.compareTo(new BigDecimal("100")) != 0) {
+            throw new IllegalArgumentException("手动选题总分必须正好为100分，当前为" + totalScore.stripTrailingZeros().toPlainString() + "分");
+        }
 
         List<ExamQuestion> toSave = new ArrayList<>();
-        for (Long questionId : toBindIds) {
+        int nextSort = 1;
+        for (Long questionId : validQuestionIds) {
             ExamQuestion relation = new ExamQuestion();
             relation.setExamId(examId);
             relation.setQuestionId(questionId);
-            relation.setScore(BigDecimal.ONE);
+            relation.setScore(questionScoreMap.get(questionId));
             relation.setSort(nextSort++);
             toSave.add(relation);
         }
 
-        if (!toSave.isEmpty()) {
-            this.saveBatch(toSave);
-        }
+        this.remove(new LambdaQueryWrapper<ExamQuestion>().eq(ExamQuestion::getExamId, examId));
+        this.saveBatch(toSave);
 
         Map<String, Object> result = new HashMap<>();
         result.put("examId", examId);
         result.put("requestedCount", distinctRequestedIds.size());
         result.put("validCount", validQuestionIds.size());
-        result.put("alreadyBoundCount", alreadyBoundIds.size());
-        result.put("addedCount", toSave.size());
-        result.put("addedQuestionIds", toBindIds);
+        result.put("replacedCount", toSave.size());
+        result.put("totalScore", totalScore);
+        result.put("boundQuestionIds", new ArrayList<>(validQuestionIds));
         return result;
     }
 
